@@ -1,0 +1,5 @@
+Build:
+mvn clean install
+
+Deploy into running instance:
+mvn -Predeploy
