@@ -72,6 +72,7 @@
             <artifactId>kcl</artifactId>
             <version>3.2.0-20100707</version>
             <!-- <version>3.2.1-20100413</version> -->
+            <!-- <version>3.2.2-20110603</version> -->
         </dependency>
 
         <!-- extended OAE deps -->
@@ -220,6 +221,7 @@
                     <useDefaultExcludes>true</useDefaultExcludes>
                     <excludes>
                         <exclude>target/**</exclude>
+                        <exclude>internal/**</exclude>
                         <exclude>**/META-INF/**</exclude>
                         <exclude>**/README</exclude>
                         <exclude>bin/**</exclude>
@@ -258,8 +260,9 @@
             </snapshots>
         </repository>
         <repository>
+            <!-- mvn deploy:deploy-file -Dpackaging=jar -DrepositoryId=internal -Durl=file:///FULL_PATH/kaltura/internal -DgroupId=kcl -DartifactId=kcl -Dfile=/FULL_PATH/kcl-3.2.0-20100707.jar -Dversion=3.2.0-20100707 -->
             <id>internal</id>
-            <layout>legacy</layout>
+            <layout>default</layout>
             <url>file://${basedir}/internal</url>
             <snapshots>
                 <enabled>false</enabled>
