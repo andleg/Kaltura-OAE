@@ -74,11 +74,11 @@ public class KalturaService {
     @Property(value="Handles all the processing related to the kaltura media integration")
     static final String SERVICE_DESCRIPTION = "service.description";
 
-    @Property(intValue=1, label="Partner Id")
+    @Property(intValue=111, label="Partner Id")
     private static final String KALTURA_PARTNER_ID = "kaltura.partnerid";
-    @Property(value="f73bcbed0115084f1d3d692cd7ae1bcf", label="Secret")
+    @Property(value="setThisToYourKalturaSecret", label="Secret")
     private static final String KALTURA_SECRET = "kaltura.secret";
-    @Property(value="7d6e6dc88a29af8660dee6dd8934c17f", label="Admin Secret")
+    @Property(value="setThisToYourKalturaAdminSecret", label="Admin Secret")
     private static final String KALTURA_ADMIN_SECRET = "kaltura.adminsecret";
     @Property(value="http://www.kaltura.com", label="Endpoint")
     private static final String KALTURA_ENDPOINT = "kaltura.endpoint";
@@ -127,7 +127,6 @@ public class KalturaService {
     String kalturaPlayerIdView = null;
     String kalturaPlayerIdEdit = null;
     String kalturaEditorId = null;
-    String kalturaUploaderId = null;
     /*
      * widgets sizes from config
      */
@@ -205,29 +204,59 @@ public class KalturaService {
         kc.setAdminSecret(kalturaAdminSecret);
         kc.setEndpoint(kalturaEndpoint);
         this.kalturaConfig = kc;
+        dumpServiceConfigToLog(properties);
         LOG.info("AZ: Init complete: KC version: "+kc.getApiVersion());
+    }
+
+    private void dumpServiceConfigToLog(Map<?, ?> properties) {
+        String propsDump="";
+        if (properties != null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("\n Properties:\n");
+            for (Map.Entry<?, ?> entry : properties.entrySet()) {
+                sb.append("  * ");
+                sb.append(entry.getKey());
+                sb.append(" -> ");
+                sb.append(entry.getValue());
+                sb.append("\n");
+            }
+            propsDump = sb.toString();
+        }
+        LOG.info("\nKalturaService Configuration: START ---------\n"
+                +" partnerId="+this.kalturaConfig.getPartnerId()+"\n"
+                +" apiVersion="+this.kalturaConfig.getApiVersion()+"\n"
+                +" endPoint="+this.kalturaConfig.getEndpoint()+"\n"
+                +" timeout="+this.kalturaConfig.getTimeout()+"\n"
+                +" kalturaCDN="+this.kalturaCDN+"\n"
+                +" kalturaEditorId="+this.kalturaEditorId+"\n"
+                +" kalturaPlayerIdView="+this.kalturaPlayerIdView+"\n"
+                +" kalturaPlayerIdEdit="+this.kalturaPlayerIdEdit+"\n"
+                +" kalturaPlayerIdAudio="+this.kalturaPlayerIdAudio+"\n"
+                +" kalturaPlayerIdImage="+this.kalturaPlayerIdImage+"\n"
+                +propsDump
+                +"KalturaService Configuration: END ---------\n");
     }
 
     @SuppressWarnings("unchecked")
     private <T> T getConfigurationSetting(String settingName, T defaultValue, Map<?,?> properties) {
         T returnValue = defaultValue;
+        Object propValue = properties.get(settingName);
         if (defaultValue == null) {
-            returnValue = (T) OsgiUtil.toString(settingName, null);
+            returnValue = (T) OsgiUtil.toString(propValue, null);
             if ("".equals(returnValue)) {
                 returnValue = null;
             }
         } else {
             if (defaultValue instanceof Number) {
                 int num = ((Number) defaultValue).intValue();
-                int value = OsgiUtil.toInteger(settingName, num);
+                int value = OsgiUtil.toInteger(propValue, num);
                 returnValue = (T) Integer.valueOf(value);
             } else if (defaultValue instanceof Boolean) {
                 boolean bool = ((Boolean) defaultValue).booleanValue();
-                boolean value = OsgiUtil.toBoolean(settingName, bool);
+                boolean value = OsgiUtil.toBoolean(propValue, bool);
                 returnValue = (T) Boolean.valueOf(value);
             } else if (defaultValue instanceof String) {
-                returnValue = (T) OsgiUtil.toString(settingName,
-                        (String) defaultValue);
+                returnValue = (T) OsgiUtil.toString(propValue, (String) defaultValue);
             }
         }
         return returnValue;

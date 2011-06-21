@@ -3,3 +3,12 @@ mvn clean install
 
 Deploy into running instance:
 mvn -Predeploy
+
+Together:
+mvn clean install -Predeploy
+
+Configuration by file:
+Create load/net.unicon.kaltura.service.KalturaService.cfg with settings in it like:
+kaltura.partnerid=111
+kaltura.secret=sssssssssssssssss
+kaltura.adminsecret=aaaaaaaaaaaaaaaaaaaa
