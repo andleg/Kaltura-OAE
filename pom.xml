@@ -67,13 +67,14 @@
             <version>3.1</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>kcl</groupId>
-            <artifactId>kcl</artifactId>
-            <version>3.2.0-20100707</version>
-            <!-- <version>3.2.1-20100413</version> -->
-            <!-- <version>3.2.2-20110603</version> -->
-        </dependency>
+        <!-- kaltura client code is now embedded -->
+<!--         <dependency> -->
+<!--             <groupId>kcl</groupId> -->
+<!--             <artifactId>kcl</artifactId> -->
+<!--             <version>3.2.0-20100707</version> -->
+<!--             <version>3.2.1-20100413</version> -->
+<!--             <version>3.2.2-20110603</version> -->
+<!--         </dependency> -->
 
         <!-- kaltura libs in OAE -->
         <dependency>
@@ -215,7 +216,7 @@
                         <Bundle-Category>unicon-kaltura</Bundle-Category>
                         <DynamicImport-Package>sun.misc.*</DynamicImport-Package>
                         <Embed-Dependency>*;scope=compile|runtime;inline=false</Embed-Dependency>
-                        <Import-Package>com.sun.org.apache.xpath.*,!com.sun.*,!junit.*,*</Import-Package>
+                        <Import-Package>!com.sun.*,!junit.*,*</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
@@ -230,11 +231,14 @@
                     <excludes>
                         <exclude>target/**</exclude>
                         <exclude>internal/**</exclude>
+                        <exclude>**/com/kaltura/**</exclude>
                         <exclude>**/META-INF/**</exclude>
                         <exclude>**/README</exclude>
                         <exclude>bin/**</exclude>
                         <exclude>**/*.min.js</exclude>
                         <exclude>**/*.swf</exclude>
+                        <exclude>**/*.flv</exclude>
+                        <exclude>**/settings.properties</exclude>
                     </excludes>
                     <mapping>
                         <tag>DYNASCRIPT_STYLE</tag>
@@ -253,6 +257,15 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/com/kaltura/**</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>

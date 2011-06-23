@@ -220,7 +220,7 @@ public class KalturaService {
         }
         LOG.info("Success connecting to the kaltura endpoint: "+kc.getEndpoint());
 
-        LOG.info("AZ: Init complete: KC version: "+kc.getApiVersion());
+        LOG.info("AZ: Init complete: API version: "+kalturaClient.getApiVersion());
     }
 
     private void dumpServiceConfigToLog(Map<?, ?> properties) {
@@ -239,7 +239,6 @@ public class KalturaService {
         }
         LOG.info("\nKalturaService Configuration: START ---------\n"
                 +" partnerId="+this.kalturaConfig.getPartnerId()+"\n"
-                +" apiVersion="+this.kalturaConfig.getApiVersion()+"\n"
                 +" endPoint="+this.kalturaConfig.getEndpoint()+"\n"
                 +" timeout="+this.kalturaConfig.getTimeout()+"\n"
                 +" kalturaCDN="+this.kalturaCDN+"\n"
