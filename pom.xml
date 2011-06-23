@@ -75,6 +75,14 @@
             <!-- <version>3.2.2-20110603</version> -->
         </dependency>
 
+        <!-- kaltura libs in OAE -->
+        <dependency>
+            <groupId>org.sakaiproject.nakamura</groupId>
+            <artifactId>org.sakaiproject.nakamura.jaxp-api</artifactId>
+            <version>1.3.0</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- extended OAE deps -->
         <dependency>
             <groupId>org.sakaiproject.nakamura</groupId>
@@ -207,7 +215,7 @@
                         <Bundle-Category>unicon-kaltura</Bundle-Category>
                         <DynamicImport-Package>sun.misc.*</DynamicImport-Package>
                         <Embed-Dependency>*;scope=compile|runtime;inline=false</Embed-Dependency>
-                        <Import-Package>!com.sun.*,!junit.*,*</Import-Package>
+                        <Import-Package>com.sun.org.apache.xpath.*,!com.sun.*,!junit.*,*</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>

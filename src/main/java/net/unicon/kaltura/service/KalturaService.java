@@ -204,7 +204,22 @@ public class KalturaService {
         kc.setAdminSecret(kalturaAdminSecret);
         kc.setEndpoint(kalturaEndpoint);
         this.kalturaConfig = kc;
+        // dump the config
         dumpServiceConfigToLog(properties);
+
+        // test out that the kc can initialize a session
+        KalturaClient kalturaClient = makeKalturaClient("admin", KalturaSessionType.ADMIN, 10);
+        if (kalturaClient == null || kalturaClient.getSessionId() == null) {
+            LOG.error("Failure connecting to the kaltura endpoint: "+kc.getEndpoint());
+            //throw new RuntimeException("Failed to connect to kaltura server endpoint ("+kc.getEndpoint()+") as admin");
+        }
+        kalturaClient = makeKalturaClient("admin", KalturaSessionType.USER, 10);
+        if (kalturaClient == null || kalturaClient.getSessionId() == null) {
+            LOG.error("Failure connecting to the kaltura endpoint: "+kc.getEndpoint());
+            //throw new RuntimeException("Failed to connect to kaltura server endpoint ("+kc.getEndpoint()+") as user");
+        }
+        LOG.info("Success connecting to the kaltura endpoint: "+kc.getEndpoint());
+
         LOG.info("AZ: Init complete: KC version: "+kc.getApiVersion());
     }
 
