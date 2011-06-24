@@ -158,23 +158,22 @@ public class KalturaService {
 
     @Activate
     protected void activate(Map<?, ?> properties) {
-        LOG.info("AZ: start");
+        LOG.info("Kaltura: start");
         init(properties);
     }
 
     @Deactivate
     protected void deactivate(Map<?, ?> properties) {
-        LOG.info("AZ: stop");
+        LOG.info("Kaltura: stop");
     }
 
     @Modified
     protected void modified(Map<?, ?> properties) {
-        LOG.info("AZ: modified config");
+        LOG.info("Kaltura: modified config");
         init(properties);
     }
 
     protected void init(Map<?, ?> properties) {
-        LOG.info("AZ: INIT");
         // load up the config
         int kalturaPartnerId = getConfigurationSetting(KALTURA_PARTNER_ID, -1, properties);
         String kalturaSecret = getConfigurationSetting(KALTURA_SECRET, null, properties);
@@ -210,22 +209,18 @@ public class KalturaService {
         // test out that the kc can initialize a session
         KalturaClient kalturaClient = makeKalturaClient("admin", KalturaSessionType.ADMIN, 10);
         if (kalturaClient == null || kalturaClient.getSessionId() == null) {
-            LOG.error("Failure connecting to the kaltura endpoint: "+kc.getEndpoint());
-            //throw new RuntimeException("Failed to connect to kaltura server endpoint ("+kc.getEndpoint()+") as admin");
+            throw new RuntimeException("Failed to connect to kaltura server endpoint ("+kc.getEndpoint()+") as admin");
         }
         kalturaClient = makeKalturaClient("admin", KalturaSessionType.USER, 10);
         if (kalturaClient == null || kalturaClient.getSessionId() == null) {
-            LOG.error("Failure connecting to the kaltura endpoint: "+kc.getEndpoint());
-            //throw new RuntimeException("Failed to connect to kaltura server endpoint ("+kc.getEndpoint()+") as user");
+            throw new RuntimeException("Failed to connect to kaltura server endpoint ("+kc.getEndpoint()+") as user");
         }
-        LOG.info("Success connecting to the kaltura endpoint: "+kc.getEndpoint());
-
-        LOG.info("AZ: Init complete: API version: "+kalturaClient.getApiVersion());
+        LOG.info("Kaltura: Init complete: API version: "+kalturaClient.getApiVersion()+", Connected to endpoint: "+kc.getEndpoint());
     }
 
     private void dumpServiceConfigToLog(Map<?, ?> properties) {
         String propsDump="";
-        if (properties != null) {
+        if (properties != null && LOG.isDebugEnabled()) {
             StringBuilder sb = new StringBuilder();
             sb.append("\n Properties:\n");
             for (Map.Entry<?, ?> entry : properties.entrySet()) {
