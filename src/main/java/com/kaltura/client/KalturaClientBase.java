@@ -3,6 +3,7 @@ package com.kaltura.client;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -20,6 +21,7 @@ import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
 import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
 import org.apache.commons.httpclient.methods.multipart.Part;
+import org.apache.commons.httpclient.methods.multipart.PartSource;
 import org.apache.commons.httpclient.methods.multipart.StringPart;
 import org.apache.commons.httpclient.params.HttpConnectionManagerParams;
 import org.apache.commons.httpclient.params.HttpMethodParams;
@@ -34,7 +36,7 @@ import com.kaltura.client.utils.XmlUtils;
  * making HTTP calls to the Kaltura server.
  * 
  * @author jpotts
- *
+ * @author azeckoski
  */
 abstract public class KalturaClientBase {
 
@@ -322,12 +324,31 @@ abstract public class KalturaClientBase {
     	}
      
     	for (String key : kfiles.keySet()) {
-    		File file = kfiles.get(key);
-    		try {
-    			parts.add(new StringPart (key, "filename="+file.getName()));
-    			parts.add(new FilePart(key, file));
-    		} catch (FileNotFoundException e) {
-    			logger.error("Exception while iterating over kfiles", e);          
+    		final KalturaFile kFile = kfiles.get(key);
+            parts.add(new StringPart (key, "filename="+kFile.getName()));
+    		if (kFile.getFile() != null) {
+    		    // use the file
+    		    File file = kFile.getFile();
+                try {
+                    parts.add(new FilePart(key, file));
+                } catch (FileNotFoundException e) {
+                    // TODO this sort of leaves the submission in a weird state... -AZ
+                    logger.error("Exception while iterating over kfiles", e);          
+                }
+    		} else {
+    		    // use the input stream
+    		    PartSource fisPS = new PartSource() {
+                    public long getLength() {
+                        return kFile.getSize();
+                    }
+                    public String getFileName() {
+                        return kFile.getName();
+                    }
+                    public InputStream createInputStream() throws IOException {
+                        return kFile.getFileInputStream();
+                    }
+                };
+                parts.add(new FilePart(key, fisPS));
     		}
     	}
       

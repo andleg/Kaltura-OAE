@@ -1,18 +1,27 @@
 package com.kaltura.client.services;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.w3c.dom.Element;
+
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
+import com.kaltura.client.KalturaFiles;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
+import com.kaltura.client.types.KalturaBaseEntry;
+import com.kaltura.client.types.KalturaBaseEntryFilter;
+import com.kaltura.client.types.KalturaBaseEntryListResponse;
+import com.kaltura.client.types.KalturaEntryContextDataParams;
+import com.kaltura.client.types.KalturaEntryContextDataResult;
+import com.kaltura.client.types.KalturaFilterPager;
+import com.kaltura.client.types.KalturaModerationFlag;
+import com.kaltura.client.types.KalturaModerationFlagListResponse;
 import com.kaltura.client.utils.XmlUtils;
-import com.kaltura.client.enums.*;
-import com.kaltura.client.types.*;
-import java.util.List;
-import java.util.ArrayList;
-import java.io.File;
-import com.kaltura.client.KalturaFiles;
 
 /**
  * This class was generated using generate.php
@@ -130,7 +139,7 @@ public class KalturaBaseEntryService extends KalturaServiceBase {
     public String upload(File fileData) throws KalturaApiException {
         KalturaParams kparams = new KalturaParams();
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", new KalturaFile(fileData));
         this.kalturaClient.queueServiceCall("baseentry", "upload", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -143,7 +152,7 @@ public class KalturaBaseEntryService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addStringIfNotNull("entryId", entryId);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", new KalturaFile(fileData));
         this.kalturaClient.queueServiceCall("baseentry", "updateThumbnailJpeg", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

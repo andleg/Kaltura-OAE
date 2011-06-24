@@ -3,6 +3,7 @@ package com.kaltura.client.services;
 import org.w3c.dom.Element;
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
@@ -67,7 +68,7 @@ public class KalturaUploadTokenService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addStringIfNotNull("uploadTokenId", uploadTokenId);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", new KalturaFile(fileData));
         kparams.addBoolIfNotNull("resume", resume);
         kparams.addBoolIfNotNull("finalChunk", finalChunk);
         kparams.addIntIfNotNull("resumeAt", resumeAt);

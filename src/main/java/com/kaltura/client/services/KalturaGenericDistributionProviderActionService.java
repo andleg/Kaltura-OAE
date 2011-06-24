@@ -3,6 +3,7 @@ package com.kaltura.client.services;
 import org.w3c.dom.Element;
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
@@ -52,7 +53,7 @@ public class KalturaGenericDistributionProviderActionService extends KalturaServ
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("id", id);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("xslFile", xslFile);
+        kfiles.put("xslFile", new KalturaFile(xslFile));
         this.kalturaClient.queueServiceCall("contentdistribution_genericdistributionprovideraction", "addMrssTransformFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -75,7 +76,7 @@ public class KalturaGenericDistributionProviderActionService extends KalturaServ
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("id", id);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("xsdFile", xsdFile);
+        kfiles.put("xsdFile", new KalturaFile(xsdFile));
         this.kalturaClient.queueServiceCall("contentdistribution_genericdistributionprovideraction", "addMrssValidateFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -98,7 +99,7 @@ public class KalturaGenericDistributionProviderActionService extends KalturaServ
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("id", id);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("transformFile", transformFile);
+        kfiles.put("transformFile", new KalturaFile(transformFile));
         this.kalturaClient.queueServiceCall("contentdistribution_genericdistributionprovideraction", "addResultsTransformFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

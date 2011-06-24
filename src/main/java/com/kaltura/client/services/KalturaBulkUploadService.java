@@ -1,18 +1,19 @@
 package com.kaltura.client.services;
 
+import java.io.File;
+
 import org.w3c.dom.Element;
+
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
+import com.kaltura.client.KalturaFiles;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
-import com.kaltura.client.utils.XmlUtils;
-import com.kaltura.client.enums.*;
-import com.kaltura.client.types.*;
-import java.util.List;
-import java.util.ArrayList;
-import java.io.File;
-import com.kaltura.client.KalturaFiles;
+import com.kaltura.client.types.KalturaBulkUpload;
+import com.kaltura.client.types.KalturaBulkUploadListResponse;
+import com.kaltura.client.types.KalturaFilterPager;
 
 /**
  * This class was generated using generate.php
@@ -31,7 +32,7 @@ public class KalturaBulkUploadService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("conversionProfileId", conversionProfileId);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("csvFileData", csvFileData);
+        kfiles.put("csvFileData", new KalturaFile(csvFileData));
         this.kalturaClient.queueServiceCall("bulkupload", "add", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

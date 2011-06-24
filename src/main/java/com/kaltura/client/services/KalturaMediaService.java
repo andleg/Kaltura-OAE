@@ -1,18 +1,28 @@
 package com.kaltura.client.services;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.ArrayList;
+
 import org.w3c.dom.Element;
+
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
+import com.kaltura.client.KalturaFiles;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
+import com.kaltura.client.types.KalturaBaseEntry;
+import com.kaltura.client.types.KalturaConversionAttribute;
+import com.kaltura.client.types.KalturaFilterPager;
+import com.kaltura.client.types.KalturaMediaEntry;
+import com.kaltura.client.types.KalturaMediaEntryFilter;
+import com.kaltura.client.types.KalturaMediaListResponse;
+import com.kaltura.client.types.KalturaModerationFlag;
+import com.kaltura.client.types.KalturaModerationFlagListResponse;
+import com.kaltura.client.types.KalturaSearchResult;
 import com.kaltura.client.utils.XmlUtils;
-import com.kaltura.client.enums.*;
-import com.kaltura.client.types.*;
-import java.util.List;
-import java.util.ArrayList;
-import java.io.File;
-import com.kaltura.client.KalturaFiles;
 
 /**
  * This class was generated using generate.php
@@ -21,7 +31,9 @@ import com.kaltura.client.KalturaFiles;
  * 
  * MANUAL CHANGES TO THIS CLASS WILL BE OVERWRITTEN.
  */
-
+/**
+ * WARNING - definitely do NOT overwrite the changes to this class -AZ
+ */
 public class KalturaMediaService extends KalturaServiceBase {
     public KalturaMediaService(KalturaClient client) {
         this.kalturaClient = client;
@@ -207,9 +219,17 @@ public class KalturaMediaService extends KalturaServiceBase {
     }
 
     public String upload(File fileData) throws KalturaApiException {
+        return handleUpload(new KalturaFile(fileData));
+    }
+
+    public String upload(FileInputStream fileInputStream, String fileName) throws KalturaApiException {
+        return handleUpload(new KalturaFile(fileInputStream, fileName));
+    }
+
+    protected String handleUpload(KalturaFile kalturaFile) throws KalturaApiException {
         KalturaParams kparams = new KalturaParams();
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", kalturaFile);
         this.kalturaClient.queueServiceCall("media", "upload", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -255,7 +275,7 @@ public class KalturaMediaService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addStringIfNotNull("entryId", entryId);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", new KalturaFile(fileData));
         this.kalturaClient.queueServiceCall("media", "updateThumbnailJpeg", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

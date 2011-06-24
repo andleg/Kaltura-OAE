@@ -3,6 +3,7 @@ package com.kaltura.client.services;
 import org.w3c.dom.Element;
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
@@ -100,7 +101,7 @@ public class KalturaLiveStreamService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addStringIfNotNull("entryId", entryId);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", new KalturaFile(fileData));
         this.kalturaClient.queueServiceCall("livestream", "updateOfflineThumbnailJpeg", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

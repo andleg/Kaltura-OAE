@@ -3,6 +3,7 @@ package com.kaltura.client.services;
 import org.w3c.dom.Element;
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
@@ -65,7 +66,7 @@ public class KalturaMetadataService extends KalturaServiceBase {
         kparams.addIntIfNotNull("objectType", objectType.getHashCode());
         kparams.addStringIfNotNull("objectId", objectId);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("xmlFile", xmlFile);
+        kfiles.put("xmlFile", new KalturaFile(xmlFile));
         this.kalturaClient.queueServiceCall("metadata_metadata", "addFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -150,7 +151,7 @@ public class KalturaMetadataService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("id", id);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("xmlFile", xmlFile);
+        kfiles.put("xmlFile", new KalturaFile(xmlFile));
         this.kalturaClient.queueServiceCall("metadata_metadata", "updateFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

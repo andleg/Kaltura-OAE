@@ -239,6 +239,8 @@
                         <exclude>**/*.swf</exclude>
                         <exclude>**/*.flv</exclude>
                         <exclude>**/settings.properties</exclude>
+                        <exclude>**/.git/**</exclude>
+                        <exclude>**/.gitignore</exclude>
                     </excludes>
                     <mapping>
                         <tag>DYNASCRIPT_STYLE</tag>

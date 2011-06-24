@@ -3,6 +3,7 @@ package com.kaltura.client.services;
 import org.w3c.dom.Element;
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
@@ -80,8 +81,8 @@ public class KalturaMetadataProfileService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         if (metadataProfile != null) kparams.add("metadataProfile", metadataProfile.toParams());
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("xsdFile", xsdFile);
-        kfiles.put("viewsFile", viewsFile);
+        kfiles.put("xsdFile", new KalturaFile(xsdFile));
+        kfiles.put("viewsFile", new KalturaFile(viewsFile));
         this.kalturaClient.queueServiceCall("metadata_metadataprofile", "addFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -144,7 +145,7 @@ public class KalturaMetadataProfileService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("id", id);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("xsdFile", xsdFile);
+        kfiles.put("xsdFile", new KalturaFile(xsdFile));
         this.kalturaClient.queueServiceCall("metadata_metadataprofile", "updateDefinitionFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
@@ -156,7 +157,7 @@ public class KalturaMetadataProfileService extends KalturaServiceBase {
         KalturaParams kparams = new KalturaParams();
         kparams.addIntIfNotNull("id", id);
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("viewsFile", viewsFile);
+        kfiles.put("viewsFile", new KalturaFile(viewsFile));
         this.kalturaClient.queueServiceCall("metadata_metadataprofile", "updateViewsFromFile", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;

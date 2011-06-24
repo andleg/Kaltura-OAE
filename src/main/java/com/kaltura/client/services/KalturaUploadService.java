@@ -3,6 +3,7 @@ package com.kaltura.client.services;
 import org.w3c.dom.Element;
 import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
+import com.kaltura.client.KalturaFile;
 import com.kaltura.client.KalturaObjectFactory;
 import com.kaltura.client.KalturaParams;
 import com.kaltura.client.KalturaServiceBase;
@@ -30,7 +31,7 @@ public class KalturaUploadService extends KalturaServiceBase {
     public String upload(File fileData) throws KalturaApiException {
         KalturaParams kparams = new KalturaParams();
         KalturaFiles kfiles = new KalturaFiles();
-        kfiles.put("fileData", fileData);
+        kfiles.put("fileData", new KalturaFile(fileData));
         this.kalturaClient.queueServiceCall("upload", "upload", kparams, kfiles);
         if (this.kalturaClient.isMultiRequest())
             return null;
