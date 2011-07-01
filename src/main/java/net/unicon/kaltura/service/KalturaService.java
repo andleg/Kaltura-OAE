@@ -330,6 +330,10 @@ public class KalturaService { //implements FileUploadHandler {
         } else if (!isVideo) {
             LOG.info("Uploaded file is not a video, no processing for Kaltura: "+fileName); // TODO - switch to debug
         } else {
+            if (isNew) {
+                // TODO do something different when this is new
+                //InternalContent.VERSION_NUMBER_FIELD;
+            }
             // do processing of the video file
             long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
             KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream);
