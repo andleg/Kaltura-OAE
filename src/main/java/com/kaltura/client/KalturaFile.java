@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * This is an abstraction of a file which allows this construct to hold a File OR a Stream
@@ -27,8 +28,9 @@ import java.io.IOException;
 public class KalturaFile {
 
     private String name;
+    private long size;
     private File file;
-    private FileInputStream fileInputStream;
+    private InputStream inputStream;
 
     /**
      * Create a KF from a File object
@@ -43,11 +45,13 @@ public class KalturaFile {
         }
         this.file = file;
         this.name = this.file.getName();
+        this.size = this.file.length();
     }
 
     /**
      * Create a KF from a FileInputStream object
      * @param fileInputStream the file stream (must not be null)
+     * @param name the file name
      */
     public KalturaFile(FileInputStream fileInputStream, String name) {
         if (fileInputStream == null) {
@@ -56,8 +60,35 @@ public class KalturaFile {
         if (name == null || "".equals(name)) {
             throw new IllegalArgumentException("name must be set");
         }
-        this.fileInputStream = fileInputStream;
+        this.inputStream = fileInputStream;
         this.name = name;
+        try {
+            this.size = fileInputStream.getChannel().size();
+        } catch (IOException e) {
+            // should not happen
+            throw new RuntimeException("Failure trying to read info from inptustream: "+e, e);
+        }
+    }
+
+    /**
+     * Create a KF from a normal input stream and some params
+     * @param inputStream the file content stream (must not be null)
+     * @param name the file name
+     * @param size the file size
+     */
+    public KalturaFile(InputStream inputStream, String name, long size) {
+        if (inputStream == null) {
+            throw new IllegalArgumentException("fileInputStream must be set");
+        }
+        if (name == null || "".equals(name)) {
+            throw new IllegalArgumentException("name must be set");
+        }
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be set");
+        }
+        this.inputStream = inputStream;
+        this.name = name;
+        this.size = size;
     }
 
     /**
@@ -75,11 +106,18 @@ public class KalturaFile {
     }
 
     /**
+     * @return the size of this file
+     */
+    public long getSize() {
+        return size;
+    }
+
+    /**
      * @return the input stream for this File (this is NEVER null)
      */
-    public FileInputStream getFileInputStream() {
-        FileInputStream fis = fileInputStream;
-        if (fileInputStream == null && file != null) {
+    public InputStream getInputStream() {
+        InputStream fis = inputStream;
+        if (inputStream == null && file != null) {
             try {
                 fis = new FileInputStream(file);
             } catch (FileNotFoundException e) {
@@ -90,21 +128,4 @@ public class KalturaFile {
         return fis;
     }
 
-    /**
-     * @return the size of this file
-     */
-    public long getSize() {
-        long size = 0;
-        if (file != null) {
-            size = file.length();
-        } else if (fileInputStream != null) {
-            try {
-                size = fileInputStream.getChannel().size();
-            } catch (IOException e) {
-                // should not happen
-                throw new RuntimeException("Failure trying to read info from inptustream: "+e, e);
-            }
-        }
-        return size;
-    }
 }

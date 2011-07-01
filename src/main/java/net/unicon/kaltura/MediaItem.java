@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 Unicon (R) Licensed under the
+ * Copyright 2011 Unicon (R) Licensed under the
  * Educational Community License, Version 2.0 (the "License"); you may
  * not use this file except in compliance with the License. You may
  * obtain a copy of the License at
@@ -12,7 +12,6 @@
  * or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
 package net.unicon.kaltura;
 
 import java.io.Serializable;
@@ -248,12 +247,12 @@ public class MediaItem implements Serializable {
     public String getDownloadURL() {
         /*
          * Instructions from Kaltura Download Button: currently the URL (which I guess you take from
-         * the 'get' response) is something like: ÊÊÊÊ
+         * the 'get' response) is something like: ï¿½ï¿½ï¿½ï¿½
          * http://cdnbakmi.kaltura.com/p/166762/sp/16676200/raw/entry_id/1_nkkzp8z4/version/0
          * concatenating '/file_name/1_nkkzp8z4' so the URL is actually adding the 'file_name'
          * parameter to the request which simply adds 'content-disposition' header to the response.
          * the 'content-disposition' is what forces the browser to open the 'open/save as' dialog.
-         * after the concatenation the URL would look like: ÊÊÊÊ
+         * after the concatenation the URL would look like: ï¿½ï¿½ï¿½ï¿½
          * http://cdnbakmi.kaltura.com/p/166762
          * /sp/16676200/raw/entry_id/1_nkkzp8z4/version/0/file_name/1_nkkzp8z4
          */

@@ -345,7 +345,7 @@ abstract public class KalturaClientBase {
                         return kFile.getName();
                     }
                     public InputStream createInputStream() throws IOException {
-                        return kFile.getFileInputStream();
+                        return kFile.getInputStream();
                     }
                 };
                 parts.add(new FilePart(key, fisPS));

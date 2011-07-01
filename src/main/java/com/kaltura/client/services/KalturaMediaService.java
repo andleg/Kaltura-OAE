@@ -2,6 +2,7 @@ package com.kaltura.client.services;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 
 import org.w3c.dom.Element;
@@ -220,6 +221,10 @@ public class KalturaMediaService extends KalturaServiceBase {
 
     public String upload(File fileData) throws KalturaApiException {
         return handleUpload(new KalturaFile(fileData));
+    }
+
+    public String upload(InputStream inputStream, String fileName, long fileSize) throws KalturaApiException {
+        return handleUpload(new KalturaFile(inputStream, fileName, fileSize));
     }
 
     public String upload(FileInputStream fileInputStream, String fileName) throws KalturaApiException {

@@ -14,7 +14,6 @@
  */
 package net.unicon.kaltura.service;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -34,6 +33,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.osgi.OsgiUtil;
 import org.sakaiproject.nakamura.api.connections.ConnectionManager;
 import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
+import org.sakaiproject.nakamura.api.files.FilesConstants;
 import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;
@@ -62,7 +62,6 @@ import com.kaltura.client.types.KalturaBaseEntry;
 import com.kaltura.client.types.KalturaBaseEntryFilter;
 import com.kaltura.client.types.KalturaBaseEntryListResponse;
 import com.kaltura.client.types.KalturaFilterPager;
-import com.kaltura.client.types.KalturaMediaEntry;
 import com.kaltura.client.types.KalturaMixEntry;
 
 
@@ -305,8 +304,8 @@ public class KalturaService { //implements FileUploadHandler {
      * @param contentProperties
      *          An immutable map of the content object's properties (see sparsemapcontent's org.sakaiproject.nakamura.lite.content.InternalContent for the names of common properties)
      *
-     * @param fileInputStream
-     *          A FileInputStream on the uploaded content, set to position zero.
+     * @param inputStream
+     *          A InputStream on the uploaded content, set to position zero.
      *
      * @param userId
      *          The login name of the client performing the file upload (as per
@@ -319,21 +318,21 @@ public class KalturaService { //implements FileUploadHandler {
      *
      **/
     Map<String, Object> handleFile(String poolId, Map<String, Object> contentProperties,
-            FileInputStream fileInputStream, String userId, boolean isNew) throws IOException {
+            InputStream inputStream, String userId, boolean isNew) throws IOException {
         Map<String, Object> props = contentProperties;
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
-        String path = (String)contentProperties.get(InternalContent.PATH_FIELD);
-        boolean isVideo = isFileVideo(poolId, mimeType);
+        String fileName = (String)contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
+        boolean isVideo = isFileVideo(fileName, mimeType);
         if ( userId != null && UserConstants.ANON_USERID.equals(userId)) {
             // only include real users, no anonymous ones
-            LOG.warn("Anonymous user uploaded a file - it is not being processed into Kaltura: "+poolId);
+            LOG.warn("Anonymous user uploaded a file - it is not being processed into Kaltura: "+fileName);
         } else if (!isVideo) {
-            LOG.info("Uploaded file is not a video, no processing for Kaltura: "+poolId); // TODO - switch to debug
+            LOG.info("Uploaded file is not a video, no processing for Kaltura: "+fileName); // TODO - switch to debug
         } else {
             // do processing of the video file
-            String fileName = path; // TODO get name from path?
-            KalturaBaseEntry kbe = uploadItem(userId, fileName, fileInputStream);
+            long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
+            KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream);
             if (kbe != null) {
                 MediaItem mediaItem = new MediaItem(kbe, userId);
                 props.put("kaltura-id", mediaItem.getKalturaId());
@@ -349,26 +348,26 @@ public class KalturaService { //implements FileUploadHandler {
         return props;
     }
     
-    protected boolean isFileVideo(String path, String mimeType) {
+    protected boolean isFileVideo(String fileName, String mimeType) {
         boolean video = false;
         if (mimeType.startsWith("video/")) {
             video = true;
         } else {
-            if (path.endsWith(".avi")  // avi
-                    || path.endsWith(".mpg") // mpeg 2
-                    || path.endsWith(".mpe") // mpeg 2
-                    || path.endsWith(".mpeg") // mpeg 2
-                    || path.endsWith(".mp4") // mpeg 4
-                    || path.endsWith(".m4v") // mpeg 4
-                    || path.endsWith(".mov") // quicktime
-                    || path.endsWith(".qt") // quicktime
-                    || path.endsWith(".asf") // windows media
-                    || path.endsWith(".asx") // windows media
-                    || path.endsWith(".wmv") // windows media
-                    || path.endsWith(".rm") // real video
-                    || path.endsWith(".ogm") // OG media
-                    || path.endsWith(".3gp") // 3gpp
-                    || path.endsWith(".mkv") // matroska
+            if (fileName.endsWith(".avi")  // avi
+                    || fileName.endsWith(".mpg") // mpeg 2
+                    || fileName.endsWith(".mpe") // mpeg 2
+                    || fileName.endsWith(".mpeg") // mpeg 2
+                    || fileName.endsWith(".mp4") // mpeg 4
+                    || fileName.endsWith(".m4v") // mpeg 4
+                    || fileName.endsWith(".mov") // quicktime
+                    || fileName.endsWith(".qt") // quicktime
+                    || fileName.endsWith(".asf") // windows media
+                    || fileName.endsWith(".asx") // windows media
+                    || fileName.endsWith(".wmv") // windows media
+                    || fileName.endsWith(".rm") // real video
+                    || fileName.endsWith(".ogm") // OG media
+                    || fileName.endsWith(".3gp") // 3gpp
+                    || fileName.endsWith(".mkv") // matroska
                     ) {
                 video = true;
             }
@@ -480,12 +479,12 @@ public class KalturaService { //implements FileUploadHandler {
 
     // KALTURA METHODS
 
-    public KalturaBaseEntry uploadItem(String userId, String fileName, FileInputStream fileInputStream) {
+    public KalturaBaseEntry uploadItem(String userId, String fileName, long fileSize, InputStream inputStream) {
         KalturaBaseEntry kme = null;
         KalturaClient kc = getKalturaClient();
         if (kc != null) {
             try {
-                String entryId = kc.getMediaService().upload(fileInputStream, fileName);
+                String entryId = kc.getMediaService().upload(inputStream, fileName, fileSize);
                 kme = kc.getBaseEntryService().get(entryId);
                 kme.userId = userId;
                 kme.name = fileName+" name"; // TODO
