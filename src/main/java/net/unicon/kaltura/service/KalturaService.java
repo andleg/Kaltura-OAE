@@ -33,6 +33,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.osgi.OsgiUtil;
 import org.sakaiproject.nakamura.api.connections.ConnectionManager;
 import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
+import org.sakaiproject.nakamura.api.files.FileUploadHandler;
 import org.sakaiproject.nakamura.api.files.FilesConstants;
 import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.lite.Repository;
@@ -42,6 +43,8 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
+import org.sakaiproject.nakamura.api.lite.content.Content;
+import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.messagebucket.MessageBucketService;
 import org.sakaiproject.nakamura.api.profile.ProfileService;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
@@ -76,7 +79,7 @@ import com.kaltura.client.types.KalturaMixEntry;
 )
 @Component
 @Service(KalturaService.class)
-public class KalturaService { //implements FileUploadHandler {
+public class KalturaService implements FileUploadHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(KalturaService.class);
 
@@ -264,6 +267,24 @@ public class KalturaService { //implements FileUploadHandler {
                 +"KalturaService Configuration: END ---------\n");
     }
 
+    private void dumpMapToLog(Map<?, ?> properties, String name) {
+        String propsDump="";
+        if (properties != null) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<?, ?> entry : properties.entrySet()) {
+                sb.append("  * ");
+                sb.append(entry.getKey());
+                sb.append(" -> ");
+                sb.append(entry.getValue());
+                sb.append("\n");
+            }
+            propsDump = sb.toString();
+        }
+        LOG.info("\nMap ("+name+"): START ---------\n"
+                +propsDump
+                +"Map ("+name+"): END ---------\n");
+    }
+
     @SuppressWarnings("unchecked")
     private <T> T getConfigurationSetting(String settingName, T defaultValue, Map<?,?> properties) {
         T returnValue = defaultValue;
@@ -319,9 +340,10 @@ public class KalturaService { //implements FileUploadHandler {
      * @return A map of properties that will be added to the newly-created content object.
      *
      **/
-    Map<String, Object> handleFile(String poolId, Map<String, Object> contentProperties,
+    public Map<String, Object> handleFile(String poolId, Map<String, Object> contentProperties,
             InputStream inputStream, String userId, boolean isNew) throws IOException {
         Map<String, Object> props = contentProperties;
+        dumpMapToLog(props, "handleFile.contentProperties"); // TODO remove
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
         String fileName = (String)contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
@@ -332,26 +354,25 @@ public class KalturaService { //implements FileUploadHandler {
         } else if (!isVideo) {
             LOG.info("Uploaded file is not a video, no processing for Kaltura: "+fileName); // TODO - switch to debug
         } else {
+            //String fileId = (String)contentProperties.get(InternalContent.UUID_FIELD);
+            int version = 1;
             if (isNew) {
-                // TODO do something different when this is new
-                /*
-InternalContent.VERSION_NUMBER_FIELD is not useful
-
-adminSession = repository.loginAdministrative();
- ContentManager cm = adminSession.getContentManager();
-
- // e.g. getVersion(poolId, contentProperties.get("_id"))
- Content content = cm.getVersion(poolId, contentProperties.get("_id"));
-
-There's also a:
-
- cm.getVersionHistory(poolId);
-                 */
+                // do something different when this is new
+                
+            } else {
+                // do things when this is an update to an existing content item
+                version = getCurrentVersion(poolId);
             }
+            Content contentItem = getContent(poolId);
+            dumpMapToLog(contentItem.getProperties(), "Content.properties"); // TODO remove
+            String title = fileName+"_title"+" - "+version;
+            String desc = (String)contentProperties.get(FilesConstants.SAKAI_DESCRIPTION);
+            String tags = (String)contentProperties.get(FilesConstants.SAKAI_TAGS);
             // do processing of the video file
             long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
-            KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream);
+            KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream, title, desc, tags); // exception if upload fails
             if (kbe != null) {
+                // item upload successful
                 MediaItem mediaItem = new MediaItem(kbe, userId);
                 props.put("kaltura-id", mediaItem.getKalturaId());
                 props.put("kaltura-thumbnail", mediaItem.getThumbnail());
@@ -365,7 +386,39 @@ There's also a:
         }
         return props;
     }
-    
+
+    /**
+     * Find the current version number (same as the number of versions) for this content item
+     * @param poolId the content pool id
+     * @return the current version number (defaults to 1)
+     */
+    protected int getCurrentVersion(String poolId) {
+        // NOTE: InternalContent.VERSION_NUMBER_FIELD is not useful
+        int version = 1;
+        try {
+            Session adminSession = repository.loginAdministrative();
+            ContentManager cm = adminSession.getContentManager();
+            // Content content = cm.getVersion(poolId, fileId);
+            List<String> versions = cm.getVersionHistory(poolId);
+            version = versions.size();
+        } catch (Exception e) {
+            LOG.error("Unable to get versions for pool="+poolId+", defaulting to 1"+e, e);
+        }
+        return version;
+    }
+
+    protected Content getContent(String poolId) {
+        Content content = null;
+        try {
+            Session adminSession = repository.loginAdministrative();
+            ContentManager cm = adminSession.getContentManager();
+            content = cm.get(poolId);
+        } catch (Exception e) {
+            LOG.error("Unable to get content by path="+poolId+": "+e, e);
+        }
+        return content;
+    }
+
     protected boolean isFileVideo(String fileName, String mimeType) {
         boolean video = false;
         if (mimeType.startsWith("video/")) {
@@ -497,7 +550,7 @@ There's also a:
 
     // KALTURA METHODS
 
-    public KalturaBaseEntry uploadItem(String userId, String fileName, long fileSize, InputStream inputStream) {
+    public KalturaBaseEntry uploadItem(String userId, String fileName, long fileSize, InputStream inputStream, String title, String description, String tags) {
         KalturaBaseEntry kme = null;
         KalturaClient kc = getKalturaClient();
         if (kc != null) {
@@ -505,14 +558,13 @@ There's also a:
                 String entryId = kc.getMediaService().upload(inputStream, fileName, fileSize);
                 kme = kc.getBaseEntryService().get(entryId);
                 kme.userId = userId;
-                kme.name = fileName+" name"; // TODO
-                kme.description = fileName+" desc";
+                kme.name = title;
+                kme.description = description;
+                kme.tags = tags;
                 kme.adminTags = "OAE";
                 kc.getBaseEntryService().update(entryId, kme); // NOTE: updateKalturaItem()
             } catch (Exception e) {
-                LOG.error("Failure uploading item: "+e, e);
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                LOG.error("Failure uploading item ("+fileName+"): "+e, e);
                 throw new RuntimeException(e);
             }
         }
