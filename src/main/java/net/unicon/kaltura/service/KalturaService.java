@@ -17,6 +17,8 @@ package net.unicon.kaltura.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +60,7 @@ import com.kaltura.client.KalturaApiException;
 import com.kaltura.client.KalturaClient;
 import com.kaltura.client.KalturaConfiguration;
 import com.kaltura.client.enums.KalturaEditorType;
+import com.kaltura.client.enums.KalturaMediaType;
 import com.kaltura.client.enums.KalturaSessionType;
 import com.kaltura.client.services.KalturaBaseEntryService;
 import com.kaltura.client.services.KalturaSessionService;
@@ -65,6 +68,7 @@ import com.kaltura.client.types.KalturaBaseEntry;
 import com.kaltura.client.types.KalturaBaseEntryFilter;
 import com.kaltura.client.types.KalturaBaseEntryListResponse;
 import com.kaltura.client.types.KalturaFilterPager;
+import com.kaltura.client.types.KalturaMediaEntry;
 import com.kaltura.client.types.KalturaMixEntry;
 
 
@@ -77,8 +81,8 @@ import com.kaltura.client.types.KalturaMixEntry;
         name = "Kaltura Service",
         description = "Handles all the processing related to the kaltura media integration"
 )
-@Component
-@Service(KalturaService.class)
+@Component(immediate = true)
+@Service({KalturaService.class, FileUploadHandler.class})
 public class KalturaService implements FileUploadHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(KalturaService.class);
@@ -342,8 +346,8 @@ public class KalturaService implements FileUploadHandler {
      **/
     public Map<String, Object> handleFile(String poolId, Map<String, Object> contentProperties,
             InputStream inputStream, String userId, boolean isNew) throws IOException {
-        Map<String, Object> props = contentProperties;
-        dumpMapToLog(props, "handleFile.contentProperties"); // TODO remove
+        Map<String, Object> props = new HashMap<String, Object>(10);
+        dumpMapToLog(contentProperties, "handleFile.contentProperties"); // TODO remove
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
         String fileName = (String)contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
@@ -367,23 +371,41 @@ public class KalturaService implements FileUploadHandler {
             dumpMapToLog(contentItem.getProperties(), "Content.properties"); // TODO remove
             String title = fileName+"_title"+" - "+version;
             String desc = (String)contentProperties.get(FilesConstants.SAKAI_DESCRIPTION);
-            String tags = (String)contentProperties.get(FilesConstants.SAKAI_TAGS);
+            String tags = "";
+            if (contentProperties.get(FilesConstants.SAKAI_TAGS) != null) {
+                String[] fileTags = (String[]) contentProperties.get(FilesConstants.SAKAI_TAGS);
+                if (fileTags.length > 0) {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < fileTags.length; i++) {
+                        String tag = fileTags[i];
+                        if (i > 0) {
+                            sb.append(",");
+                        }
+                        sb.append(tag);
+                    }
+                    tags = sb.toString();
+                }
+            }
             // do processing of the video file
             long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
             KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream, title, desc, tags); // exception if upload fails
             if (kbe != null) {
                 // item upload successful
                 MediaItem mediaItem = new MediaItem(kbe, userId);
-                props.put("kaltura-id", mediaItem.getKalturaId());
+                props.put("kaltura-id", mediaItem.getKalturaId()); // TODO - blank
                 props.put("kaltura-thumbnail", mediaItem.getThumbnail());
                 props.put("kaltura-download", mediaItem.getDownloadURL());
-                props.put("kaltura-duration", mediaItem.getDuration());
-                props.put("kaltura-height", mediaItem.getHeight());
-                props.put("kaltura-width", mediaItem.getWidth());
+                props.put("kaltura-duration", mediaItem.getDuration()); // TODO - blank
+                props.put("kaltura-height", mediaItem.getHeight()); // TODO - blank
+                props.put("kaltura-width", mediaItem.getWidth()); // TODO - blank
                 props.put("kaltura-type", mediaItem.getType());
                 props.put(InternalContent.MIMETYPE_FIELD, "kaltura/"+mediaItem.getType());
+
+                LOG.info("Completed upload to Kaltura of file ("+fileName+") and created kalturaEntry ("+kbe.id+")");
             }
+            LOG.info("Kaltura file upload hanlder complete: "+fileName);
         }
+        dumpMapToLog(props, "final-props"); // TODO remove
         return props;
     }
 
@@ -551,18 +573,28 @@ public class KalturaService implements FileUploadHandler {
     // KALTURA METHODS
 
     public KalturaBaseEntry uploadItem(String userId, String fileName, long fileSize, InputStream inputStream, String title, String description, String tags) {
-        KalturaBaseEntry kme = null;
+        if (title == null || "".equals(title)) {
+            title = fileName;
+        }
+        KalturaMediaEntry kme = null;
         KalturaClient kc = getKalturaClient();
         if (kc != null) {
             try {
-                String entryId = kc.getMediaService().upload(inputStream, fileName, fileSize);
-                kme = kc.getBaseEntryService().get(entryId);
-                kme.userId = userId;
-                kme.name = title;
-                kme.description = description;
-                kme.tags = tags;
-                kme.adminTags = "OAE";
-                kc.getBaseEntryService().update(entryId, kme); // NOTE: updateKalturaItem()
+                String uploadTokenId = kc.getMediaService().upload(inputStream, fileName, fileSize);
+                //LOG.info("upload token result: "+uploadTokenId);
+                KalturaMediaEntry mediaEntry = new KalturaMediaEntry();
+                mediaEntry.mediaType = KalturaMediaType.VIDEO;
+                mediaEntry.userId = userId;
+                mediaEntry.name = title;
+                if (description != null) {
+                    mediaEntry.description = description;
+                }
+                if (tags != null) {
+                    mediaEntry.tags = tags;
+                }
+                //mediaEntry.adminTags = "OAE"; // TODO handle with custom meta fields?
+                kme = kc.getMediaService().addFromUploadedFile(mediaEntry, uploadTokenId);
+                //kme = kc.getBaseEntryService().update(entryId, mediaEntry); // NOTE: updateKalturaItem()
             } catch (Exception e) {
                 LOG.error("Failure uploading item ("+fileName+"): "+e, e);
                 throw new RuntimeException(e);
