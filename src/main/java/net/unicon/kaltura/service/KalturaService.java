@@ -293,6 +293,8 @@ public class KalturaService { //implements FileUploadHandler {
     // OAE FILE UPLOAD HANDLER
 
     /**
+     * NOTE: requires https://github.com/marktriggs/nakamura/tree/fileuploadhandlers for now
+     * 
      * This method is called when a file is uploaded via the
      * CreateContentPoolServlet.  It is called after the file has been added to
      * the repository, but has the opportunity to add or replace properties by
@@ -332,7 +334,19 @@ public class KalturaService { //implements FileUploadHandler {
         } else {
             if (isNew) {
                 // TODO do something different when this is new
-                //InternalContent.VERSION_NUMBER_FIELD;
+                /*
+InternalContent.VERSION_NUMBER_FIELD is not useful
+
+adminSession = repository.loginAdministrative();
+ ContentManager cm = adminSession.getContentManager();
+
+ // e.g. getVersion(poolId, contentProperties.get("_id"))
+ Content content = cm.getVersion(poolId, contentProperties.get("_id"));
+
+There's also a:
+
+ cm.getVersionHistory(poolId);
+                 */
             }
             // do processing of the video file
             long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
