@@ -81,7 +81,7 @@ import com.kaltura.client.types.KalturaMixEntry;
         name = "Kaltura Service",
         description = "Handles all the processing related to the kaltura media integration"
 )
-@Component(immediate = true)
+@Component(immediate = true, metatype=true)
 @Service({KalturaService.class, FileUploadHandler.class})
 public class KalturaService implements FileUploadHandler {
 

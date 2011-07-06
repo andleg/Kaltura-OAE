@@ -41,7 +41,7 @@ deploy into a running OAE instance using Maven:
 
 Configuration
 -------------
-Use the system console (your.server/system/console/configMgr) TODO
+Use the system console (your.server/system/console/configMgr) and click on "Kaltura Service" and edit the fields
 OR 
 create a load/net.unicon.kaltura.service.KalturaService.cfg file
 (the load directory should be in the same dir as your OAE installation, you may need to create this dir) 
