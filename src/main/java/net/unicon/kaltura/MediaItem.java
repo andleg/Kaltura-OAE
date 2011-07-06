@@ -34,14 +34,37 @@ import com.kaltura.client.types.KalturaMixEntry;
  */
 public class MediaItem implements Serializable {
 
+    private static final long serialVersionUID = 2L;
+
     private static Log log = LogFactory.getLog(MediaItem.class);
 
     public static final String TYPE_IMAGE = "image";
     public static final String TYPE_AUDIO = "audio";
     public static final String TYPE_VIDEO = "video";
 
-    private static final long serialVersionUID = 1L;
+    private static final int defaultWidgetWidth = 480;
+    private static final int defaultWidgetHeight = 360;
 
+    private static int kalturaPlayerImageWidth = MediaItem.defaultWidgetWidth;
+    private static int kalturaPlayerImageHeight = MediaItem.defaultWidgetHeight;
+    private static int kalturaPlayerAudioWidth = MediaItem.defaultWidgetWidth;
+    private static int kalturaPlayerAudioHeight = 30;
+    private static int kalturaPlayerVideoWidth = MediaItem.defaultWidgetWidth;
+    private static int kalturaPlayerVideoHeight = MediaItem.defaultWidgetHeight;
+
+    public static void setDefaultSizes(
+            int kalturaPlayerImageWidth, int kalturaPlayerImageHeight,
+            int kalturaPlayerAudioWidth, int kalturaPlayerAudioHeight,
+            int kalturaPlayerVideoWidth, int kalturaPlayerVideoHeight
+            ) {
+        MediaItem.kalturaPlayerImageWidth = kalturaPlayerImageWidth;
+        MediaItem.kalturaPlayerImageHeight = kalturaPlayerImageHeight;
+        MediaItem.kalturaPlayerAudioWidth = kalturaPlayerAudioWidth;
+        MediaItem.kalturaPlayerAudioHeight = kalturaPlayerAudioHeight;
+        MediaItem.kalturaPlayerVideoWidth = kalturaPlayerVideoWidth;
+        MediaItem.kalturaPlayerVideoHeight = kalturaPlayerVideoHeight;
+    }
+    
     private Long id; // internal id
     private String locationId; // Sakai site or group reference
     private String kalturaId; // kaltura identifier
@@ -85,6 +108,8 @@ public class MediaItem implements Serializable {
             this.type = findType();
         }
         if (kalturaItem != null) {
+            this.kalturaId = kalturaItem.id;
+            this.kalturaPartnerId = kalturaItem.partnerId;
             if (kalturaItem instanceof KalturaMixEntry) {
                 media = false;
                 mix = true;
@@ -180,30 +205,44 @@ public class MediaItem implements Serializable {
     }
 
     public int getWidth() {
-        int width = 400;
+        int width = MediaItem.defaultWidgetWidth;
         if (kalturaItem != null) {
             if (kalturaItem instanceof KalturaMediaEntry) {
                 width = ((KalturaMediaEntry) kalturaItem).width;
             } else if (kalturaItem instanceof KalturaMixEntry) {
                 width = ((KalturaMixEntry) kalturaItem).width;
             }
-            if (width < 0) {
-                width = 0;
+            if (width <= 0) {
+                String type = findType();
+                if (TYPE_AUDIO.equals(type)) {
+                    width = MediaItem.kalturaPlayerAudioWidth;
+                } else if (TYPE_IMAGE.equals(type)) {
+                    width = MediaItem.kalturaPlayerImageWidth;
+                } else {
+                    width = MediaItem.kalturaPlayerVideoWidth;
+                }
             }
         }
         return width;
     }
 
     public int getHeight() {
-        int height = 300;
+        int height = MediaItem.defaultWidgetHeight;
         if (kalturaItem != null) {
             if (kalturaItem instanceof KalturaMediaEntry) {
                 height = ((KalturaMediaEntry) kalturaItem).height;
             } else if (kalturaItem instanceof KalturaMixEntry) {
                 height = ((KalturaMixEntry) kalturaItem).height;
             }
-            if (height < 0) {
-                height = 0;
+            if (height <= 0) {
+                String type = findType();
+                if (TYPE_AUDIO.equals(type)) {
+                    height = MediaItem.kalturaPlayerAudioHeight;
+                } else if (TYPE_IMAGE.equals(type)) {
+                    height = MediaItem.kalturaPlayerImageHeight;
+                } else {
+                    height = MediaItem.kalturaPlayerVideoHeight;
+                }
             }
         }
         return height;

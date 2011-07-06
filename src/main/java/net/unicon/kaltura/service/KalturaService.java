@@ -18,9 +18,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import net.unicon.kaltura.MediaItem;
 
@@ -221,6 +221,12 @@ public class KalturaService implements FileUploadHandler {
         this.kalturaPlayerVideoWidth = getConfigurationSetting(KALTURA_PLAYER_VIDEO_WIDTH, this.kalturaPlayerVideoWidth, properties);
         this.kalturaPlayerVideoHeight = getConfigurationSetting(KALTURA_PLAYER_VIDEO_HEIGHT, this.kalturaPlayerVideoHeight, properties);
 
+        MediaItem.setDefaultSizes(
+                this.kalturaPlayerImageWidth, this.kalturaPlayerImageHeight,
+                this.kalturaPlayerAudioWidth, this.kalturaPlayerAudioHeight,
+                this.kalturaPlayerVideoWidth, this.kalturaPlayerVideoHeight
+        );
+
         // create the shared kaltura config
         KalturaConfiguration kc = new KalturaConfiguration();
         kc.setPartnerId(kalturaPartnerId);
@@ -314,7 +320,7 @@ public class KalturaService implements FileUploadHandler {
         return returnValue;
     }
 
-    
+
     // OAE FILE UPLOAD HANDLER
 
     /**
@@ -351,28 +357,43 @@ public class KalturaService implements FileUploadHandler {
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
         String fileName = (String)contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
+
+        // no handling for images yet
+        KalturaMediaType mediaType = KalturaMediaType.VIDEO;
         boolean isVideo = isFileVideo(fileName, mimeType);
+        boolean isAudio = false; // TODO
+        if (isAudio) {
+            mediaType = KalturaMediaType.AUDIO;
+        }
+
         if ( userId != null && UserConstants.ANON_USERID.equals(userId)) {
             // only include real users, no anonymous ones
             LOG.warn("Anonymous user uploaded a file - it is not being processed into Kaltura: "+fileName);
-        } else if (!isVideo) {
-            LOG.info("Uploaded file is not a video, no processing for Kaltura: "+fileName); // TODO - switch to debug
+        } else if (!isVideo && !isAudio) {
+            if (!isAudio) {
+                LOG.debug("Uploaded file is not an audio file, no processing for Kaltura: "+fileName);
+            } else {
+                LOG.debug("Uploaded file is not a video, no processing for Kaltura: "+fileName);
+            }
         } else {
             //String fileId = (String)contentProperties.get(InternalContent.UUID_FIELD);
             int version = 1;
             if (isNew) {
                 // do something different when this is new
-                
+
             } else {
                 // do things when this is an update to an existing content item
-                version = getCurrentVersion(poolId);
+                version = getCurrentVersion(poolId); // exception if lookup fails
             }
-            Content contentItem = getContent(poolId);
-            dumpMapToLog(contentItem.getProperties(), "Content.properties"); // TODO remove
-            String title = fileName+"_title"+" - "+version;
-            String desc = (String)contentProperties.get(FilesConstants.SAKAI_DESCRIPTION);
+            String title = fileName+"_title";
+            if (contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME) != null) {
+                title = (String) contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
+            }
+            title += " - "+version;
+            String desc = (String)contentProperties.get(FilesConstants.SAKAI_DESCRIPTION); // may be blank
             String tags = "";
             if (contentProperties.get(FilesConstants.SAKAI_TAGS) != null) {
+                // convert tags array into CSV string
                 String[] fileTags = (String[]) contentProperties.get(FilesConstants.SAKAI_TAGS);
                 if (fileTags.length > 0) {
                     StringBuilder sb = new StringBuilder();
@@ -388,18 +409,21 @@ public class KalturaService implements FileUploadHandler {
             }
             // do processing of the video file
             long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
-            KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream, title, desc, tags); // exception if upload fails
+            KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream, mediaType, title, desc, tags); // exception if upload fails
             if (kbe != null) {
                 // item upload successful
                 MediaItem mediaItem = new MediaItem(kbe, userId);
-                props.put("kaltura-id", mediaItem.getKalturaId()); // TODO - blank
+
+                props.put("kaltura-id", mediaItem.getKalturaId());
                 props.put("kaltura-thumbnail", mediaItem.getThumbnail());
                 props.put("kaltura-download", mediaItem.getDownloadURL());
-                props.put("kaltura-duration", mediaItem.getDuration()); // TODO - blank
-                props.put("kaltura-height", mediaItem.getHeight()); // TODO - blank
-                props.put("kaltura-width", mediaItem.getWidth()); // TODO - blank
+                props.put("kaltura-duration", mediaItem.getDuration()); // probably will be 0
+                props.put("kaltura-height", mediaItem.getHeight());
+                props.put("kaltura-width", mediaItem.getWidth());
                 props.put("kaltura-type", mediaItem.getType());
                 props.put(InternalContent.MIMETYPE_FIELD, "kaltura/"+mediaItem.getType());
+
+                updateContent(poolId, props); // exception if update fails
 
                 LOG.info("Completed upload to Kaltura of file ("+fileName+") and created kalturaEntry ("+kbe.id+")");
             }
@@ -414,7 +438,7 @@ public class KalturaService implements FileUploadHandler {
      * @param poolId the content pool id
      * @return the current version number (defaults to 1)
      */
-    protected int getCurrentVersion(String poolId) {
+    private int getCurrentVersion(String poolId) {
         // NOTE: InternalContent.VERSION_NUMBER_FIELD is not useful
         int version = 1;
         try {
@@ -429,16 +453,53 @@ public class KalturaService implements FileUploadHandler {
         return version;
     }
 
-    protected Content getContent(String poolId) {
+    /**
+     * Retrieve an OAE content item
+     * @param poolId the unique path/poolId of a content object
+     * @return the Content object
+     * @throws RuntimeException if the content object cannot be retrieved
+     */
+    private Content getContent(String poolId) {
         Content content = null;
         try {
             Session adminSession = repository.loginAdministrative();
             ContentManager cm = adminSession.getContentManager();
             content = cm.get(poolId);
+            adminSession.logout();
         } catch (Exception e) {
             LOG.error("Unable to get content by path="+poolId+": "+e, e);
+            throw new RuntimeException("Unable to get content by path="+poolId+": "+e, e);
         }
         return content;
+    }
+
+    /**
+     * Update an OAE content item
+     * @param poolId the unique path/poolId of a content object
+     * @param properties the properties to update or delete on this object (props with a NULL value will be removed, all others will be replaced or added)
+     * @throws RuntimeException if the content object cannot be updated
+     */
+    private void updateContent(String poolId, Map<?, ?> properties) {
+        Content contentItem = getContent(poolId);
+        //dumpMapToLog(properties, "NEW-properties");
+        for (Entry<?, ?> entry : properties.entrySet()) {
+            String key = (String) entry.getKey();
+            Object val = entry.getValue();
+            if (val != null) {
+                contentItem.setProperty(key, val);
+            } else {
+                contentItem.removeProperty(key);
+            }
+        }
+        try {
+            Session adminSession = repository.loginAdministrative();
+            ContentManager contentManager = adminSession.getContentManager();
+            contentManager.update(contentItem);
+            adminSession.logout();
+        } catch (Exception e) {
+            LOG.error("Unable to update content at path="+poolId+": "+e, e);
+            throw new RuntimeException("Unable to update content at path="+poolId+": "+e, e);
+        }
     }
 
     protected boolean isFileVideo(String fileName, String mimeType) {
@@ -461,7 +522,7 @@ public class KalturaService implements FileUploadHandler {
                     || fileName.endsWith(".ogm") // OG media
                     || fileName.endsWith(".3gp") // 3gpp
                     || fileName.endsWith(".mkv") // matroska
-                    ) {
+            ) {
                 video = true;
             }
         }
@@ -572,9 +633,13 @@ public class KalturaService implements FileUploadHandler {
 
     // KALTURA METHODS
 
-    public KalturaBaseEntry uploadItem(String userId, String fileName, long fileSize, InputStream inputStream, String title, String description, String tags) {
+    public KalturaBaseEntry uploadItem(String userId, String fileName, long fileSize, InputStream inputStream, 
+            KalturaMediaType mediaType, String title, String description, String tags) {
         if (title == null || "".equals(title)) {
             title = fileName;
+        }
+        if (mediaType == null) {
+            mediaType = KalturaMediaType.VIDEO;
         }
         KalturaMediaEntry kme = null;
         KalturaClient kc = getKalturaClient();
@@ -779,7 +844,7 @@ public class KalturaService implements FileUploadHandler {
         // DO NOT CACHE THIS ONE
         KalturaBaseEntry entry = null;
         // Cannot use the KMEF because it cannot filter by id correctly -AZ
-/*
+        /*
         KalturaBaseEntryFilter kmef = new KalturaBaseEntryFilter();
         kmef.partnerIdEqual = this.kalturaConfig.getPartnerId();
         kmef.userIdEqual = currentUserName;
@@ -789,7 +854,7 @@ public class KalturaService implements FileUploadHandler {
         if (listResponse != null && ! listResponse.objects.isEmpty()) {
             kme = listResponse.objects.get(0); // just get the first one
         }
-*/
+         */
         // have to use - mediaService.get(keid); despite it not even checking if we have access to this - AZ
         entry = entryService.get(keid);
         if (entry == null) {
