@@ -119,8 +119,8 @@ public class KalturaService implements FileUploadHandler {
     kaltura.uploader - 2011401
     kaltura.editor - 2733871
      */
-    @Property(value="2162571", label="Player - Image")
-    private static final String KALTURA_PLAYER_IMAGE = "kaltura.player.image";
+    //@Property(value="2162571", label="Player - Image")
+    //private static final String KALTURA_PLAYER_IMAGE = "kaltura.player.image";
     @Property(value="2158531", label="Player - Audio")
     private static final String KALTURA_PLAYER_AUDIO = "kaltura.player.audio";
     @Property(value="1522202", label="Player - Video View")
