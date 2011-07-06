@@ -125,15 +125,15 @@ public class KalturaService implements FileUploadHandler {
     private static final String KALTURA_PLAYER_AUDIO = "kaltura.player.audio";
     @Property(value="1522202", label="Player - Video View")
     private static final String KALTURA_PLAYER_VIEW = "kaltura.player.view";
-    @Property(value="1522362", label="Player - Video Edit")
-    private static final String KALTURA_PLAYER_EDIT = "kaltura.player.edit";
-    @Property(value="2733871", label="Player - Editor")
-    private static final String KALTURA_PLAYER_EDITOR = "kaltura.player.editor";
+    //@Property(value="1522362", label="Player - Video Edit")
+    //private static final String KALTURA_PLAYER_EDIT = "kaltura.player.edit";
+    //@Property(value="2733871", label="Player - Editor")
+    //private static final String KALTURA_PLAYER_EDITOR = "kaltura.player.editor";
 
-    @Property(intValue=KalturaService.defaultWidgetWidth, label="Player - Image - Width")
-    private static final String KALTURA_PLAYER_IMAGE_WIDTH = "kaltura.player.image.width";
-    @Property(intValue=KalturaService.defaultWidgetHeight, label="Player - Image - Height")
-    private static final String KALTURA_PLAYER_IMAGE_HEIGHT = "kaltura.player.image.height";
+    //@Property(intValue=KalturaService.defaultWidgetWidth, label="Player - Image - Width")
+    //private static final String KALTURA_PLAYER_IMAGE_WIDTH = "kaltura.player.image.width";
+    //@Property(intValue=KalturaService.defaultWidgetHeight, label="Player - Image - Height")
+    //private static final String KALTURA_PLAYER_IMAGE_HEIGHT = "kaltura.player.image.height";
     @Property(intValue=KalturaService.defaultWidgetWidth, label="Player - Audio - Width")
     private static final String KALTURA_PLAYER_AUDIO_WIDTH = "kaltura.player.audio.width";
     @Property(intValue=30, label="Player - Audio - Height")
@@ -215,15 +215,15 @@ public class KalturaService implements FileUploadHandler {
         this.kalturaCDN = getConfigurationSetting(KALTURA_CDN, null, properties);
 
         // supports customizing the look and feel AND functionality of the kaltura widgets
-        this.kalturaPlayerIdImage = getConfigurationSetting(KALTURA_PLAYER_IMAGE, "2162571", properties);
+        //this.kalturaPlayerIdImage = getConfigurationSetting(KALTURA_PLAYER_IMAGE, "2162571", properties);
         this.kalturaPlayerIdAudio = getConfigurationSetting(KALTURA_PLAYER_AUDIO, "2158531", properties);
         this.kalturaPlayerIdView = getConfigurationSetting(KALTURA_PLAYER_VIEW, "1522202", properties);
-        this.kalturaPlayerIdEdit = getConfigurationSetting(KALTURA_PLAYER_EDIT, "1522362", properties);
-        this.kalturaEditorId = getConfigurationSetting(KALTURA_PLAYER_EDITOR, "2733871", properties);
+        //this.kalturaPlayerIdEdit = getConfigurationSetting(KALTURA_PLAYER_EDIT, "1522362", properties);
+        //this.kalturaEditorId = getConfigurationSetting(KALTURA_PLAYER_EDITOR, "2733871", properties);
 
         // allows for config of the sizes of the players
-        this.kalturaPlayerImageWidth = getConfigurationSetting(KALTURA_PLAYER_IMAGE_WIDTH, this.kalturaPlayerImageWidth, properties);
-        this.kalturaPlayerImageHeight = getConfigurationSetting(KALTURA_PLAYER_IMAGE_HEIGHT, this.kalturaPlayerImageHeight, properties);
+        //this.kalturaPlayerImageWidth = getConfigurationSetting(KALTURA_PLAYER_IMAGE_WIDTH, this.kalturaPlayerImageWidth, properties);
+        //this.kalturaPlayerImageHeight = getConfigurationSetting(KALTURA_PLAYER_IMAGE_HEIGHT, this.kalturaPlayerImageHeight, properties);
         this.kalturaPlayerAudioWidth = getConfigurationSetting(KALTURA_PLAYER_AUDIO_WIDTH, this.kalturaPlayerAudioWidth, properties);
         this.kalturaPlayerAudioHeight = getConfigurationSetting(KALTURA_PLAYER_AUDIO_HEIGHT, this.kalturaPlayerAudioHeight, properties);
         this.kalturaPlayerVideoWidth = getConfigurationSetting(KALTURA_PLAYER_VIDEO_WIDTH, this.kalturaPlayerVideoWidth, properties);
