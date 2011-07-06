@@ -446,8 +446,9 @@ public class KalturaService implements FileUploadHandler {
             // Content content = cm.getVersion(poolId, fileId);
             List<String> versions = cm.getVersionHistory(poolId);
             version = versions.size();
+            adminSession.logout();
         } catch (Exception e) {
-            LOG.error("Unable to get versions for pool="+poolId+", defaulting to 1"+e, e);
+            LOG.error("Unable to get versions for pool="+poolId+", defaulting to "+version+": "+e, e);
         }
         return version;
     }
