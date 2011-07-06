@@ -91,6 +91,10 @@ public class KalturaService implements FileUploadHandler {
     private static final int defaultWidgetWidth = 480;
     private static final int defaultWidgetHeight = 360;
 
+    public static final String KALTURA_MIMETYPE_VIDEO = "kaltura/video";
+    public static final String KALTURA_MIMETYPE_AUDIO = "kaltura/audio";
+    public static final String KALTURA_MIMETYPE_IMAGE = "kaltura/image";
+
     @Property(value="Unicon, Inc.")
     static final String SERVICE_VENDOR = "service.vendor";
     @Property(value="Handles all the processing related to the kaltura media integration")
@@ -198,6 +202,10 @@ public class KalturaService implements FileUploadHandler {
         init(properties);
     }
 
+    /**
+     * Initialize the configuration based on the OSGi config properties for this service
+     * @param properties map of config settings
+     */
     protected void init(Map<?, ?> properties) {
         // load up the config
         int kalturaPartnerId = getConfigurationSetting(KALTURA_PARTNER_ID, -1, properties);
@@ -249,6 +257,10 @@ public class KalturaService implements FileUploadHandler {
         LOG.info("Kaltura: Init complete: API version: "+kalturaClient.getApiVersion()+", Connected to endpoint: "+kc.getEndpoint());
     }
 
+    /**
+     * Special logging method
+     * @param properties
+     */
     private void dumpServiceConfigToLog(Map<?, ?> properties) {
         String propsDump="";
         if (properties != null && LOG.isDebugEnabled()) {
@@ -277,7 +289,12 @@ public class KalturaService implements FileUploadHandler {
                 +"KalturaService Configuration: END ---------\n");
     }
 
-    private void dumpMapToLog(Map<?, ?> properties, String name) {
+    /**
+     * Special logging method
+     * @param properties
+     * @param name
+     */
+    protected void dumpMapToLog(Map<?, ?> properties, String name) {
         String propsDump="";
         if (properties != null) {
             StringBuilder sb = new StringBuilder();
@@ -295,6 +312,14 @@ public class KalturaService implements FileUploadHandler {
                 +"Map ("+name+"): END ---------\n");
     }
 
+    /**
+     * Special method for handling retrieval of OAE config settings in a typesafe way
+     * @param <T>
+     * @param settingName the key for the setting
+     * @param defaultValue the default value if unset
+     * @param properties the set of properties to search
+     * @return the value of the setting (if set) or default value if not
+     */
     @SuppressWarnings("unchecked")
     private <T> T getConfigurationSetting(String settingName, T defaultValue, Map<?,?> properties) {
         T returnValue = defaultValue;
@@ -350,19 +375,23 @@ public class KalturaService implements FileUploadHandler {
      * @return A map of properties that will be added to the newly-created content object.
      *
      **/
-    public Map<String, Object> handleFile(String poolId, Map<String, Object> contentProperties,
+    public Map<String, Object> handleFile(String poolId, Map<String, Object> contentPropertiesMethod,
             InputStream inputStream, String userId, boolean isNew) throws IOException {
-        dumpMapToLog(contentProperties, "handleFile.contentProperties"); // TODO remove
+        Map<String, Object> contentProperties = getContentProperties(poolId);
+        //dumpMapToLog(contentProperties, "handleFile.contentProperties");
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
         String fileName = (String)contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
 
-        // no handling for images yet
+        // NOTE: no handling for images yet
         KalturaMediaType mediaType = KalturaMediaType.VIDEO;
         boolean isVideo = isFileVideo(fileName, mimeType);
-        boolean isAudio = false; // TODO
-        if (isAudio) {
-            mediaType = KalturaMediaType.AUDIO;
+        boolean isAudio = false;
+        if (!isVideo) {
+            isAudio = isFileAudio(fileName, mimeType);
+            if (isAudio) {
+                mediaType = KalturaMediaType.AUDIO;
+            }
         }
 
         if ( userId != null && UserConstants.ANON_USERID.equals(userId)) {
@@ -421,16 +450,27 @@ public class KalturaService implements FileUploadHandler {
                 props.put("kaltura-height", mediaItem.getHeight());
                 props.put("kaltura-width", mediaItem.getWidth());
                 props.put("kaltura-type", mediaItem.getType());
-                props.put(InternalContent.MIMETYPE_FIELD, "kaltura/"+mediaItem.getType());
+                String kalturaMimeType = KALTURA_MIMETYPE_VIDEO;
+                if (MediaItem.TYPE_AUDIO.equals(mediaItem.getMediaType())) {
+                    kalturaMimeType = KALTURA_MIMETYPE_AUDIO;
+                } else if (MediaItem.TYPE_IMAGE.equals(mediaItem.getMediaType())) {
+                    kalturaMimeType = KALTURA_MIMETYPE_IMAGE;
+                }
+                props.put(InternalContent.MIMETYPE_FIELD, kalturaMimeType);
 
-                LOG.info("Completed upload to Kaltura of file ("+fileName+") and created kalturaEntry ("+kbe.id+")");
+                LOG.info("Completed upload to Kaltura of file ("+fileName+") of type ("+kalturaMimeType+") and created kalturaEntry ("+mediaItem.getKalturaId()+")");
 
                 updateContent(poolId, props); // exception if update fails
+            } else {
+                // should we fail here if kaltura does not return a valid KBE? -AZ
             }
-            LOG.info("Kaltura file upload hanlder complete: "+fileName);
+            LOG.info("Kaltura file upload handler complete: "+fileName);
         }
         return new HashMap<String, Object>(0); // updated the props already, no need to return but have to return a non-null or exception
     }
+
+
+    // OAE processing methods
 
     /**
      * Find the current version number (same as the number of versions) for this content item
@@ -470,7 +510,21 @@ public class KalturaService implements FileUploadHandler {
             LOG.error("Unable to get content by path="+poolId+": "+e, e);
             throw new RuntimeException("Unable to get content by path="+poolId+": "+e, e);
         }
+        if (content == null) {
+            throw new RuntimeException("Unable to get content by path="+poolId+": item not found");
+        }
         return content;
+    }
+
+    /**
+     * Retrieve the properties for some OAE content
+     * @param poolId the unique path/poolId of a content object
+     * @return the Map of content properties
+     * @throws RuntimeException if the content object cannot be retrieved
+     */
+    private Map<String, Object> getContentProperties(String poolId) {
+        Content content = getContent(poolId);
+        return content.getProperties();
     }
 
     /**
@@ -496,16 +550,22 @@ public class KalturaService implements FileUploadHandler {
             ContentManager contentManager = adminSession.getContentManager();
             contentManager.update(contentItem);
             adminSession.logout();
-            LOG.info("Completed update of content item props ("+poolId+") for Kaltura upload"); // TODO make debug
+            LOG.debug("Completed update of content item props ("+poolId+") for Kaltura upload");
         } catch (Exception e) {
             LOG.error("Unable to update content at path="+poolId+": "+e, e);
             throw new RuntimeException("Unable to update content at path="+poolId+": "+e, e);
         }
     }
 
+    /**
+     * Determine if a file has video content
+     * @param fileName the file name as uploaded
+     * @param mimeType the mimetype from the UI
+     * @return true if video, false otherwise
+     */
     protected boolean isFileVideo(String fileName, String mimeType) {
         boolean video = false;
-        if (mimeType.startsWith("video/")) {
+        if (KALTURA_MIMETYPE_VIDEO.equals(mimeType) || mimeType.startsWith("video/")) {
             video = true;
         } else {
             if (fileName.endsWith(".avi")  // avi
@@ -530,6 +590,37 @@ public class KalturaService implements FileUploadHandler {
         return video;
     }
 
+    /**
+     * Determine if a file has audio content
+     * @param fileName the file name as uploaded
+     * @param mimeType the mimetype from the UI
+     * @return true if audio, false otherwise
+     */
+    protected boolean isFileAudio(String fileName, String mimeType) {
+        boolean audio = false;
+        if (KALTURA_MIMETYPE_AUDIO.equals(mimeType) || mimeType.startsWith("audio/")) {
+            audio = true;
+        } else {
+            if (fileName.endsWith(".wav")  // wave audio
+                    || fileName.endsWith(".aif") // aiff
+                    || fileName.endsWith(".mp3") // mpeg 3
+                    || fileName.endsWith(".aac") // aac
+                    || fileName.endsWith(".mid") // midi
+                    || fileName.endsWith(".mpa") // mpeg 2 audio
+                    || fileName.endsWith(".wma") // windows media audio
+                    || fileName.endsWith(".ra") // realaudio
+            ) {
+                audio = true;
+            }
+        }
+        return audio;
+    }
+
+    /**
+     * Get a user and their data based on the user identifier
+     * @param userId user id (username)
+     * @return the User object OR null if not found
+     */
     protected User getUser(String userId) {
         User u = null;
         Session adminSession = null;
@@ -538,6 +629,7 @@ public class KalturaService implements FileUploadHandler {
             AuthorizableManager authorizableManager = adminSession.getAuthorizableManager();
             Authorizable authorizable = authorizableManager.findAuthorizable(userId);
             u = (User) authorizable;
+            adminSession.logout();
         } catch (StorageClientException e) {
             // nothing to do here
         } catch (AccessDeniedException e) {
@@ -554,10 +646,11 @@ public class KalturaService implements FileUploadHandler {
         return u;
     }
 
+
     // KALTURA CLIENT
 
     /*
-     * NOTE: the KalturaClient is not even close to being threadsafe
+     * NOTE: the KalturaClient is not even close to being threadsafe -AZ
      */
     ThreadLocal<KalturaClient> kctl = new ThreadLocal<KalturaClient>() {
         @Override
