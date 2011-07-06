@@ -180,8 +180,8 @@ public class MediaItem implements Serializable {
         return MediaItem.truncateText(getDesc(), shortMaxDesc, shortSpace);
     }
 
-    public float getDuration() {
-        float duration = 0;
+    public int getDuration() {
+        int duration = 0;
         if (kalturaItem != null) {
             if (kalturaItem instanceof KalturaMediaEntry) {
                 duration = ((KalturaMediaEntry) kalturaItem).duration;

@@ -429,7 +429,7 @@ public class KalturaService implements FileUploadHandler {
             }
             LOG.info("Kaltura file upload hanlder complete: "+fileName);
         }
-        return null; // updated the props already, no need to return
+        return new HashMap<String, Object>(0); // updated the props already, no need to return but have to return a non-null or exception
     }
 
     /**
