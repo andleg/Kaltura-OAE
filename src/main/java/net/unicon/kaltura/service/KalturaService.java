@@ -352,7 +352,6 @@ public class KalturaService implements FileUploadHandler {
      **/
     public Map<String, Object> handleFile(String poolId, Map<String, Object> contentProperties,
             InputStream inputStream, String userId, boolean isNew) throws IOException {
-        Map<String, Object> props = new HashMap<String, Object>(10);
         dumpMapToLog(contentProperties, "handleFile.contentProperties"); // TODO remove
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
@@ -414,6 +413,7 @@ public class KalturaService implements FileUploadHandler {
                 // item upload successful
                 MediaItem mediaItem = new MediaItem(kbe, userId);
 
+                Map<String, Object> props = new HashMap<String, Object>(10);
                 props.put("kaltura-id", mediaItem.getKalturaId());
                 props.put("kaltura-thumbnail", mediaItem.getThumbnail());
                 props.put("kaltura-download", mediaItem.getDownloadURL());
@@ -423,14 +423,13 @@ public class KalturaService implements FileUploadHandler {
                 props.put("kaltura-type", mediaItem.getType());
                 props.put(InternalContent.MIMETYPE_FIELD, "kaltura/"+mediaItem.getType());
 
-                updateContent(poolId, props); // exception if update fails
-
                 LOG.info("Completed upload to Kaltura of file ("+fileName+") and created kalturaEntry ("+kbe.id+")");
+
+                updateContent(poolId, props); // exception if update fails
             }
             LOG.info("Kaltura file upload hanlder complete: "+fileName);
         }
-        dumpMapToLog(props, "final-props"); // TODO remove
-        return props;
+        return null; // updated the props already, no need to return
     }
 
     /**
@@ -496,6 +495,7 @@ public class KalturaService implements FileUploadHandler {
             ContentManager contentManager = adminSession.getContentManager();
             contentManager.update(contentItem);
             adminSession.logout();
+            LOG.info("Completed update of content item props ("+poolId+") for Kaltura upload"); // TODO make debug
         } catch (Exception e) {
             LOG.error("Unable to update content at path="+poolId+": "+e, e);
             throw new RuntimeException("Unable to update content at path="+poolId+": "+e, e);
@@ -610,7 +610,7 @@ public class KalturaService implements FileUploadHandler {
     private KalturaClient makeKalturaClient(String userKey, KalturaSessionType sessionType, int timeoutSecs) {
         // client is not threadsafe
         if (timeoutSecs <= 0) {
-            timeoutSecs = 86400; // FIXME set to 24 hours by request of kaltura   60; // default to 60 seconds
+            timeoutSecs = 86400; // NOTE set to 24 hours by request of kaltura   60; // default to 60 seconds
         }
         KalturaClient kalturaClient = new KalturaClient(this.kalturaConfig);
         String secret = this.kalturaConfig.getSecret();
@@ -707,7 +707,7 @@ public class KalturaService implements FileUploadHandler {
                 //kmef.orderBy = "title";
                 KalturaFilterPager pager = new KalturaFilterPager();
                 pager.pageSize = max;
-                pager.pageIndex = 0; // TODO - kaltura does not support a start item in the paging API, only a start page
+                pager.pageIndex = 0; // NOTE - kaltura does not support a start item in the paging API, only a start page
                 KalturaBaseEntryListResponse listResponse = entryService.list(filter, pager);
                 for (KalturaBaseEntry entry : listResponse.objects) {
                     items.add(entry); // KalturaMediaEntry KalturaMixEntry
