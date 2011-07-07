@@ -33,6 +33,8 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.osgi.OsgiUtil;
+import org.osgi.service.event.Event;
+import org.osgi.service.event.EventHandler;
 import org.sakaiproject.nakamura.api.connections.ConnectionManager;
 import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
@@ -82,8 +84,8 @@ import com.kaltura.client.types.KalturaMixEntry;
         description = "Handles all the processing related to the kaltura media integration"
 )
 @Component(immediate = true, metatype=true)
-@Service({KalturaService.class, FileUploadHandler.class})
-public class KalturaService implements FileUploadHandler {
+@Service({KalturaService.class, FileUploadHandler.class, EventHandler.class})
+public class KalturaService implements FileUploadHandler, EventHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(KalturaService.class);
 
@@ -345,29 +347,22 @@ public class KalturaService implements FileUploadHandler {
         return returnValue;
     }
 
+    /* (non-Javadoc)
+     * @see org.osgi.service.event.EventHandler#handleEvent(org.osgi.service.event.Event)
+     */
+    public void handleEvent(Event event) {
+        String topic = event.getTopic();
+        // TODO figure out how to tell which event I care about and get the poolId from it???? -AZ
+    }
 
     // OAE FILE UPLOAD HANDLER
 
-    /**
+    /*
      * NOTE: requires https://github.com/marktriggs/nakamura/tree/fileuploadhandlers for now
      * 
-     * This method is called when a file is uploaded via the
-     * CreateContentPoolServlet.  It is called after the file has been added to
-     * the repository.
-     *
-     * @param poolId
-     *          The path of the content object for the file (a unique identifier).
-     *
-     * @param inputStream
-     *          A FileInputStream on the uploaded content, set to position zero.
-     *
-     * @param userId
-     *          The login name of the client performing the file upload (as per
-     *          request.getRemoteUser())
-     *
-     * @param isNew
-     *          True if the uploaded file is new content.  False if it replaces an existing node.
-     **/
+     * (non-Javadoc)
+     * @see org.sakaiproject.nakamura.api.files.FileUploadHandler#handleFile(java.lang.String, java.io.InputStream, java.lang.String, boolean)
+     */
     public void handleFile(String poolId, InputStream inputStream, String userId, boolean isNew) throws IOException {
         Map<String, Object> contentProperties = getContentProperties(poolId);
         //dumpMapToLog(contentProperties, "handleFile.contentProperties");
