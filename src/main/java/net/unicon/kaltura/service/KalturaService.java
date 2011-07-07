@@ -353,17 +353,13 @@ public class KalturaService implements FileUploadHandler {
      * 
      * This method is called when a file is uploaded via the
      * CreateContentPoolServlet.  It is called after the file has been added to
-     * the repository, but has the opportunity to add or replace properties by
-     * returning them as a Map.
+     * the repository.
      *
      * @param poolId
      *          The path of the content object for the file (a unique identifier).
      *
-     * @param contentProperties
-     *          An immutable map of the content object's properties (see sparsemapcontent's org.sakaiproject.nakamura.lite.content.InternalContent for the names of common properties)
-     *
      * @param inputStream
-     *          A InputStream on the uploaded content, set to position zero.
+     *          A FileInputStream on the uploaded content, set to position zero.
      *
      * @param userId
      *          The login name of the client performing the file upload (as per
@@ -371,12 +367,8 @@ public class KalturaService implements FileUploadHandler {
      *
      * @param isNew
      *          True if the uploaded file is new content.  False if it replaces an existing node.
-     *
-     * @return A map of properties that will be added to the newly-created content object.
-     *
      **/
-    public Map<String, Object> handleFile(String poolId, Map<String, Object> contentPropertiesMethod,
-            InputStream inputStream, String userId, boolean isNew) throws IOException {
+    public void handleFile(String poolId, InputStream inputStream, String userId, boolean isNew) throws IOException {
         Map<String, Object> contentProperties = getContentProperties(poolId);
         //dumpMapToLog(contentProperties, "handleFile.contentProperties");
         // check if this is a video file and do nothing if it is not
@@ -466,7 +458,6 @@ public class KalturaService implements FileUploadHandler {
             }
             LOG.info("Kaltura file upload handler complete: "+fileName);
         }
-        return new HashMap<String, Object>(0); // updated the props already, no need to return but have to return a non-null or exception
     }
 
 
@@ -961,6 +952,5 @@ public class KalturaService implements FileUploadHandler {
         }
         return entry;
     }
-
 
 }
