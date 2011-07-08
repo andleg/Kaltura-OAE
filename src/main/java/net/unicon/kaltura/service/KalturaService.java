@@ -353,6 +353,43 @@ public class KalturaService implements FileUploadHandler, EventHandler {
     public void handleEvent(Event event) {
         String topic = event.getTopic();
         // TODO figure out how to tell which event I care about and get the poolId from it???? -AZ
+        /*
+
+> A couple followup questions related to the updating stuff.
+>
+> 1) What's the constant for
+> "org/sakaiproject/nakamura/lite/content/UPDATED"? grep did not find it
+> so I am guessing it is probably constructed.
+
+Yep, other spots in the code seem to just hard-code the strings.  I'd
+normally look in org.sakaiproject.nakamura.api.lite.StoreListener for
+such a constant, but I already did and there isn't one :)
+
+
+> 2) Is that going to be the "topic" for the event? If so, where do I
+> get the poolId/path for the content item once I have the event? If
+> not, what is that matching?
+
+Yep, org/sakaiproject/nakamura/lite/content/UPDATED is the topic.  You
+can get the pathId with:
+
+ event.getProperty("path")
+
+(again, most places in the code just seem to use "path" instead of a
+constant...).  You can look at the events getting fired by hitting:
+
+ http://localhost:8080/system/console/events
+
+and the ones you're interested in will just have an unadorned path like
+"h1o6Hi3ie".  In mine I see other events with the same topic but paths
+like "/activity/content/h1o6Hi3ie" too, but those aren't relevant of
+interest here and can be ignored.
+
+So yeah, it's all a bit hairy :)  If that all makes sense I'll try to
+amend the doco for FileUploadHandler to emphasise that getting notified
+about uploaded files is only half the story.
+
+         */
     }
 
     // OAE FILE UPLOAD HANDLER
@@ -360,10 +397,26 @@ public class KalturaService implements FileUploadHandler, EventHandler {
     /*
      * NOTE: requires https://github.com/marktriggs/nakamura/tree/fileuploadhandlers for now
      * 
+     * Handling requires some SPECIAL work here because of weaknesses in OAE:
+     * 1) When user uploads a new file, we process the call to handle method and
+     * put in fake meta-info and then put a marker in the content properties
+     * 2) When next post comes in a few ms later, the event processor method is called 
+     * which will tell us that the content has been updated, we
+     * check for the marker and if it is there then we have to do a second call
+     * over to kaltura to update the 3 values for title, desc, and tags, then
+     * we clear the marker
+     * 3) When the user later on updates the content, we have to ignore those
+     * updates which would trigger calls to that interface as long as the
+     * marker is not present
+     * 4) When the user uploads a new version, we have to process that upload via
+     * the handle method and also update the metadata in one operation
+     * because in that case the metadata is correct
+     * 
      * (non-Javadoc)
      * @see org.sakaiproject.nakamura.api.files.FileUploadHandler#handleFile(java.lang.String, java.io.InputStream, java.lang.String, boolean)
      */
     public void handleFile(String poolId, InputStream inputStream, String userId, boolean isNew) throws IOException {
+        // TODO - special process handling
         Map<String, Object> contentProperties = getContentProperties(poolId);
         //dumpMapToLog(contentProperties, "handleFile.contentProperties");
         // check if this is a video file and do nothing if it is not
