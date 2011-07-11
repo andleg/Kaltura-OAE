@@ -17,6 +17,7 @@ package net.unicon.kaltura.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -347,52 +348,76 @@ public class KalturaService implements FileUploadHandler, EventHandler {
         return returnValue;
     }
 
+    private static final String TOPIC_CONTENT_UPDATED = "org/sakaiproject/nakamura/lite/content/UPDATED";
+    private static final String TOPIC_PROPERTY_POOLID = "path";
     /* (non-Javadoc)
      * @see org.osgi.service.event.EventHandler#handleEvent(org.osgi.service.event.Event)
      */
     public void handleEvent(Event event) {
-        String topic = event.getTopic();
-        // TODO figure out how to tell which event I care about and get the poolId from it???? -AZ
-        /*
+        /* NOTES: Q&A from AZ to Carl and Mark
+        > 1) What's the constant for
+        > "org/sakaiproject/nakamura/lite/content/UPDATED"? grep did not find it
+        > so I am guessing it is probably constructed.
 
-> A couple followup questions related to the updating stuff.
->
-> 1) What's the constant for
-> "org/sakaiproject/nakamura/lite/content/UPDATED"? grep did not find it
-> so I am guessing it is probably constructed.
-
-Yep, other spots in the code seem to just hard-code the strings.  I'd
-normally look in org.sakaiproject.nakamura.api.lite.StoreListener for
-such a constant, but I already did and there isn't one :)
+        Yep, other spots in the code seem to just hard-code the strings.  I'd
+        normally look in org.sakaiproject.nakamura.api.lite.StoreListener for
+        such a constant, but I already did and there isn't one :)
 
 
-> 2) Is that going to be the "topic" for the event? If so, where do I
-> get the poolId/path for the content item once I have the event? If
-> not, what is that matching?
+        > 2) Is that going to be the "topic" for the event? If so, where do I
+        > get the poolId/path for the content item once I have the event? If
+        > not, what is that matching?
 
-Yep, org/sakaiproject/nakamura/lite/content/UPDATED is the topic.  You
-can get the pathId with:
+        Yep, org/sakaiproject/nakamura/lite/content/UPDATED is the topic.  You
+        can get the pathId with:
 
- event.getProperty("path")
+         event.getProperty("path")
 
-(again, most places in the code just seem to use "path" instead of a
-constant...).  You can look at the events getting fired by hitting:
+        (again, most places in the code just seem to use "path" instead of a
+        constant...).  You can look at the events getting fired by hitting:
 
- http://localhost:8080/system/console/events
+         http://localhost:8080/system/console/events
 
-and the ones you're interested in will just have an unadorned path like
-"h1o6Hi3ie".  In mine I see other events with the same topic but paths
-like "/activity/content/h1o6Hi3ie" too, but those aren't relevant of
-interest here and can be ignored.
+        and the ones you're interested in will just have an unadorned path like
+        "h1o6Hi3ie".  In mine I see other events with the same topic but paths
+        like "/activity/content/h1o6Hi3ie" too, but those aren't relevant of
+        interest here and can be ignored.
 
-So yeah, it's all a bit hairy :)  If that all makes sense I'll try to
-amend the doco for FileUploadHandler to emphasise that getting notified
-about uploaded files is only half the story.
-
+        So yeah, it's all a bit hairy :)  If that all makes sense I'll try to
+        amend the doco for FileUploadHandler to emphasise that getting notified
+        about uploaded files is only half the story.
          */
+        String topic = event.getTopic();
+        if (TOPIC_CONTENT_UPDATED.equals(topic)) {
+            String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
+            if (poolId != null) {
+                Content content = getContent(poolId);
+                // check for the key
+                String kalturaEntryId = (String) content.getProperties().get(OAE_CONTENT_NEW_FLAG);
+                if (kalturaEntryId != null) {
+                    // make the kaltura entry to update it
+                    KalturaBaseEntry kbe = new KalturaBaseEntry();
+                    kbe.id = kalturaEntryId;
+                    int version = getContentVersion(poolId);
+                    String fileName = (String)content.getProperties().get(FilesConstants.POOLED_CONTENT_FILENAME);
+                    kbe.name = makeKalturaTitle(content.getProperties(), fileName, version);
+                    kbe.description = (String)content.getProperties().get(FilesConstants.SAKAI_DESCRIPTION); // may be blank
+                    kbe.tags = makeKalturaTags(content.getProperties());
+                    updateKalturaItem(null, kbe);
+
+                    // remove the flag and update the kaltura updated timestamp
+                    Map<String, Object> props = new HashMap<String, Object>(1);
+                    props.put(OAE_CONTENT_NEW_FLAG, null);
+                    props.put("kaltura-updated", new Date().getTime());
+                    updateContent(poolId, props);
+                }
+            }
+        }
     }
 
     // OAE FILE UPLOAD HANDLER
+
+    private static final String OAE_CONTENT_NEW_FLAG = "kaltura-content-new";
 
     /*
      * NOTE: requires https://github.com/marktriggs/nakamura/tree/fileuploadhandlers for now
@@ -416,7 +441,6 @@ about uploaded files is only half the story.
      * @see org.sakaiproject.nakamura.api.files.FileUploadHandler#handleFile(java.lang.String, java.io.InputStream, java.lang.String, boolean)
      */
     public void handleFile(String poolId, InputStream inputStream, String userId, boolean isNew) throws IOException {
-        // TODO - special process handling
         Map<String, Object> contentProperties = getContentProperties(poolId);
         //dumpMapToLog(contentProperties, "handleFile.contentProperties");
         // check if this is a video file and do nothing if it is not
@@ -451,30 +475,11 @@ about uploaded files is only half the story.
 
             } else {
                 // do things when this is an update to an existing content item
-                version = getCurrentVersion(poolId); // exception if lookup fails
+                version = getContentVersion(poolId); // exception if lookup fails
             }
-            String title = fileName+"_title";
-            if (contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME) != null) {
-                title = (String) contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
-            }
-            title += " - "+version;
+            String title = makeKalturaTitle(contentProperties, fileName, version);
             String desc = (String)contentProperties.get(FilesConstants.SAKAI_DESCRIPTION); // may be blank
-            String tags = "";
-            if (contentProperties.get(FilesConstants.SAKAI_TAGS) != null) {
-                // convert tags array into CSV string
-                String[] fileTags = (String[]) contentProperties.get(FilesConstants.SAKAI_TAGS);
-                if (fileTags.length > 0) {
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < fileTags.length; i++) {
-                        String tag = fileTags[i];
-                        if (i > 0) {
-                            sb.append(",");
-                        }
-                        sb.append(tag);
-                    }
-                    tags = sb.toString();
-                }
-            }
+            String tags = makeKalturaTags(contentProperties);
             // do processing of the video file
             long fileSize = (Long) contentProperties.get(InternalContent.LENGTH_FIELD);
             KalturaBaseEntry kbe = uploadItem(userId, fileName, fileSize, inputStream, mediaType, title, desc, tags); // exception if upload fails
@@ -483,6 +488,11 @@ about uploaded files is only half the story.
                 MediaItem mediaItem = new MediaItem(kbe, userId);
 
                 Map<String, Object> props = new HashMap<String, Object>(10);
+                if (isNew) {
+                    // if this is newly uploaded content then we have to do special handling, store the kaltura entry ID here
+                    props.put(OAE_CONTENT_NEW_FLAG, mediaItem.getKalturaId());
+                }
+                props.put("kaltura-updated", new Date().getTime());
                 props.put("kaltura-id", mediaItem.getKalturaId());
                 props.put("kaltura-thumbnail", mediaItem.getThumbnail());
                 props.put("kaltura-download", mediaItem.getDownloadURL());
@@ -508,6 +518,50 @@ about uploaded files is only half the story.
         }
     }
 
+    /**
+     * Make a title to be sent to Kaltura
+     * @param contentProperties OAE content properties
+     * @param fileName the file name (necessary for making the default title)
+     * @param version the content version (greater than or equal to 1)
+     * @return the title to send to kaltura
+     */
+    private String makeKalturaTitle(Map<String, Object> contentProperties, String fileName, int version) {
+        String title = fileName+"_title";
+        if (contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME) != null) {
+            title = (String) contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
+        }
+        if (version < 1) {
+            version = 1;
+        }
+        title += " - "+version;
+        return title;
+    }
+
+    /**
+     * Make the tags to be send to kaltura based on OAE content
+     * @param contentProperties OAE content properties
+     * @return the tags comma separated string (empty string if there are none)
+     */
+    private String makeKalturaTags(Map<String, Object> contentProperties) {
+        String tags = "";
+        if (contentProperties.get(FilesConstants.SAKAI_TAGS) != null) {
+            // convert tags array into CSV string
+            String[] fileTags = (String[]) contentProperties.get(FilesConstants.SAKAI_TAGS);
+            if (fileTags.length > 0) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < fileTags.length; i++) {
+                    String tag = fileTags[i];
+                    if (i > 0) {
+                        sb.append(",");
+                    }
+                    sb.append(tag);
+                }
+                tags = sb.toString();
+            }
+        }
+        return tags;
+    }
+
 
     // OAE processing methods
 
@@ -516,7 +570,7 @@ about uploaded files is only half the story.
      * @param poolId the content pool id
      * @return the current version number (defaults to 1)
      */
-    private int getCurrentVersion(String poolId) {
+    private int getContentVersion(String poolId) {
         // NOTE: InternalContent.VERSION_NUMBER_FIELD is not useful
         int version = 1;
         try {
@@ -775,7 +829,7 @@ about uploaded files is only half the story.
             mediaType = KalturaMediaType.VIDEO;
         }
         KalturaMediaEntry kme = null;
-        KalturaClient kc = getKalturaClient();
+        KalturaClient kc = getKalturaClient(userId); // force this to be an admin key
         if (kc != null) {
             try {
                 String uploadTokenId = kc.getMediaService().upload(inputStream, fileName, fileSize);
@@ -995,8 +1049,8 @@ about uploaded files is only half the story.
             throw new IllegalArgumentException("Cannot find kaltura item ("+keid+") with for user ("+userKey+")");
         }
         // also do a manual check for security, not so sure about this check though -AZ
-        if (! entry.userId.equalsIgnoreCase(userKey) && entry.partnerId != this.kalturaConfig.getPartnerId()) {
-            throw new SecurityException("currentUserName ("+userKey+") does not match KME user key ("+entry.userId+") and KME partnerId ("+entry.partnerId+") does not match current one ("+this.kalturaConfig.getPartnerId()+"), cannot access this KME ("+keid+")");
+        if (entry.partnerId != this.kalturaConfig.getPartnerId()) {
+            throw new SecurityException("KME partnerId ("+entry.partnerId+") does not match current one ("+this.kalturaConfig.getPartnerId()+"), cannot access this KME ("+keid+")");
         }
         return entry;
     }
