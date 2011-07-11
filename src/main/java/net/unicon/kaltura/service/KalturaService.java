@@ -391,14 +391,17 @@ public class KalturaService implements FileUploadHandler, EventHandler {
 
         NOTES:
         - this is called 16 times on a new item upload and about 12 times for content updates and 6 times for update version file uploads,
-        as a result we cannot just update kaltura each time this is called or it will crush the kaltura servers
+          as a result we cannot just update kaltura each time this is called or it will crush the kaltura servers
 
         - I attempted to compare the original and current properties to see if I could identify when they changed but this did not work
-        as the results in the logs show: 
-           ... realUpdate=false, (az-test.mov)=(az-test.mov),(null)=(null)
-           ... realUpdate=false, (aaaaaaaaaa)=(aaaaaaaaaa),(bbbbbb)=(bbbbbb)
+          as the results in the logs show: 
+            ... realUpdate=false, (az-test.mov)=(az-test.mov),(null)=(null)
+            ... realUpdate=false, (aaaaaaaaaa)=(aaaaaaaaaa),(bbbbbb)=(bbbbbb)
         
-        - Attempting to use the 'update' property to filter down the number of events - "update".equals(event.getProperty("op")
+        - Attempting to use the 'update' property to filter down the number of events - "update".equals(event.getProperty("op"),
+          this only gets it down to 3 events so still too many to be reasonable
+
+        - added in a filter to check if the _versionHistoryId is present, this seems to finally get it down to only 1 update
          */
         boolean updateEvent = "update".equals(event.getProperty("op"));
         String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
@@ -408,11 +411,13 @@ public class KalturaService implements FileUploadHandler, EventHandler {
             if (content != null) {
                 // check for the key
                 String kalturaEntryId = (String) content.getProperties().get(OAE_CONTENT_NEW_FLAG);
-                if (kalturaEntryId != null && content.getOriginalProperties().containsKey(OAE_CONTENT_NEW_FLAG)) {
+                String versionHistoryId = (String) content.getProperties().get(InternalContent.VERSION_HISTORY_ID_FIELD);
+                boolean realUpdate = versionHistoryId != null && content.getOriginalProperties().containsKey(OAE_CONTENT_NEW_FLAG);
+                if (kalturaEntryId != null && realUpdate) {
                     LOG.info("ZZZZZZZZZZA - Found content to update in kaltura"); // TODO remove
+                    //dumpMapToLog(content.getProperties(), "contentProperties - "+kalturaEntryId); // TODO remove
                     LOG.info("Found kaltura content item ("+poolId+") to update during OAE content update with keid ("+kalturaEntryId+")...");
                     // make the kaltura entry to update it
-                    /*
                     KalturaBaseEntry kbe = new KalturaBaseEntry();
                     kbe.id = kalturaEntryId;
                     int version = getContentVersion(poolId);
@@ -427,7 +432,6 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                     props.put("kaltura-updated", new Date().getTime());
                     Map<String, Object> newProps = updateContent(poolId, props); // exception if update fails
                     dumpMapToLog(newProps, "updatedContentProperties"); // TODO remove
-                    */
                     LOG.info("Updated OAE content item ("+poolId+") and synced Kaltura item ("+kalturaEntryId+") data");
                 }
             }
@@ -532,8 +536,9 @@ public class KalturaService implements FileUploadHandler, EventHandler {
 
                 LOG.info("Completed upload ("+title+") to Kaltura of file ("+fileName+") of type ("+kalturaMimeType+") and created kalturaEntry ("+mediaItem.getKalturaId()+")");
 
-                Map<String, Object> newProps = updateContent(poolId, props); // exception if update fails
-                dumpMapToLog(newProps, "newContentProperties"); // TODO remove
+                updateContent(poolId, props); // exception if update fails
+                // Map<String, Object> newProps = ...
+                //dumpMapToLog(newProps, "newContentProperties");
             } else {
                 // should we fail here if kaltura does not return a valid KBE? -AZ
             }
