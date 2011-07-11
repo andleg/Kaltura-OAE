@@ -401,7 +401,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
         - Attempting to use the 'update' property to filter down the number of events - "update".equals(event.getProperty("op"),
           this only gets it down to 3 events so still too many to be reasonable
 
-        - added in a filter to check if the _versionHistoryId is present, this seems to finally get it down to only 1 update
+        - added in a filter to check if the _versionHistoryId is present, this seems to finally get it down to only 2 updates
          */
         boolean updateEvent = "update".equals(event.getProperty("op"));
         String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
