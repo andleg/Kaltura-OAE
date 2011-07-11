@@ -419,8 +419,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                      *  (2) This event type operation is an update
                      *  (3) The content item has the version history id set
                      */
-                    LOG.info("ZZZZZZZZZZA - Found content to update in kaltura"); // TODO remove
-                    //dumpMapToLog(content.getProperties(), "contentProperties - "+kalturaEntryId); // TODO remove
+                    //dumpMapToLog(content.getProperties(), "contentProperties - "+kalturaEntryId);
                     LOG.info("Found kaltura content item ("+poolId+") to update during OAE content update with keid ("+kalturaEntryId+")...");
                     // make the kaltura entry to update it
                     KalturaBaseEntry kbe = new KalturaBaseEntry();
@@ -432,11 +431,11 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                     updateKalturaItem(null, kbe);
 
                     // remove the flag and update the kaltura updated timestamp
-                    Map<String, Object> props = new HashMap<String, Object>(1);
+                    Map<String, Object> props = new HashMap<String, Object>(2);
                     props.put(OAE_CONTENT_NEW_FLAG, null);
                     props.put("kaltura-updated", new Date().getTime());
-                    Map<String, Object> newProps = updateContent(poolId, props); // exception if update fails
-                    dumpMapToLog(newProps, "updatedContentProperties"); // TODO remove
+                    updateContent(poolId, props); // exception if update fails
+                    //dumpMapToLog(newProps, "updatedContentProperties");
                     LOG.info("Updated OAE content item ("+poolId+") and synced Kaltura item ("+kalturaEntryId+") data");
                 }
             }
