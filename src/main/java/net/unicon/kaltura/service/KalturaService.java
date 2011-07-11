@@ -81,8 +81,8 @@ import com.kaltura.client.types.KalturaMixEntry;
  * @author Aaron Zeckoski (azeckoski @ unicon.net) (azeckoski @ vt.edu)
  */
 @ServiceDocumentation(
-        name = "Kaltura Service",
-        description = "Handles all the processing related to the kaltura media integration"
+    name = "Kaltura Service",
+    description = "Handles all the processing related to the kaltura media integration"
 )
 @Component(immediate = true, metatype=true)
 @Service({KalturaService.class, FileUploadHandler.class, EventHandler.class})
@@ -102,6 +102,8 @@ public class KalturaService implements FileUploadHandler, EventHandler {
     static final String SERVICE_VENDOR = "service.vendor";
     @Property(value="Handles all the processing related to the kaltura media integration")
     static final String SERVICE_DESCRIPTION = "service.description";
+    @Property(value={ KalturaService.TOPIC_CONTENT_UPDATED })
+    static final String SERVICE_EVENT_TOPICS = "event.topics";
 
     @Property(intValue=111, label="Partner Id")
     private static final String KALTURA_PARTNER_ID = "kaltura.partnerid";
@@ -348,7 +350,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
         return returnValue;
     }
 
-    private static final String TOPIC_CONTENT_UPDATED = "org/sakaiproject/nakamura/lite/content/UPDATED";
+    protected static final String TOPIC_CONTENT_UPDATED = "org/sakaiproject/nakamura/lite/content/UPDATED";
     private static final String TOPIC_PROPERTY_POOLID = "path";
     /* (non-Javadoc)
      * @see org.osgi.service.event.EventHandler#handleEvent(org.osgi.service.event.Event)
@@ -387,14 +389,19 @@ public class KalturaService implements FileUploadHandler, EventHandler {
         amend the doco for FileUploadHandler to emphasise that getting notified
         about uploaded files is only half the story.
          */
-        String topic = event.getTopic();
-        if (TOPIC_CONTENT_UPDATED.equals(topic)) {
-            String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
-            if (poolId != null) {
-                Content content = getContent(poolId);
+        LOG.info("AAAAAZZZZZ - Event ("+event.getTopic()+")"); // TODO remove
+        String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
+        if (poolId != null) {
+            Content content = getContent(poolId);
+            if (content != null) {
                 // check for the key
                 String kalturaEntryId = (String) content.getProperties().get(OAE_CONTENT_NEW_FLAG);
-                if (kalturaEntryId != null) {
+                // indicates that the OAE_CONTENT_NEW_FLAG was just now added to the content item
+                boolean justAddedFlag = ! content.getOriginalProperties().containsKey(OAE_CONTENT_NEW_FLAG);
+                LOG.info("ZZZZZAAAAA - kalturaEntryId="+kalturaEntryId+", justAddedFlag="+justAddedFlag); // TODO remove
+                if (kalturaEntryId != null && ! justAddedFlag) {
+                    LOG.info("ZZZZZAAAAA - Found content to update in kaltura"); // TODO remove
+                    LOG.info("Found kaltura content item ("+poolId+") to update during OAE content update with keid ("+kalturaEntryId+")...");
                     // make the kaltura entry to update it
                     KalturaBaseEntry kbe = new KalturaBaseEntry();
                     kbe.id = kalturaEntryId;
@@ -410,6 +417,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                     props.put(OAE_CONTENT_NEW_FLAG, null);
                     props.put("kaltura-updated", new Date().getTime());
                     updateContent(poolId, props);
+                    LOG.info("Updated OAE content item ("+poolId+") and synced Kaltura item ("+kalturaEntryId+") data");
                 }
             }
         }
@@ -844,7 +852,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                 if (tags != null) {
                     mediaEntry.tags = tags;
                 }
-                //mediaEntry.adminTags = "OAE"; // TODO handle with custom meta fields?
+                mediaEntry.adminTags = "OAE"; // Should we handle with custom meta fields instead (for 9 July 2011, we will not)?
                 kme = kc.getMediaService().addFromUploadedFile(mediaEntry, uploadTokenId);
                 //kme = kc.getBaseEntryService().update(entryId, mediaEntry); // NOTE: updateKalturaItem()
             } catch (Exception e) {
