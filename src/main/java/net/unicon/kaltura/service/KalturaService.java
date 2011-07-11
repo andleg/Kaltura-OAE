@@ -406,7 +406,6 @@ public class KalturaService implements FileUploadHandler, EventHandler {
         boolean updateEvent = "update".equals(event.getProperty("op"));
         String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
         if (poolId != null && updateEvent) {
-            LOG.info("AAAAAAAAAAAAZ - this ("+poolId+") counts as an update event"); // TODO remove
             Content content = getContent(poolId);
             if (content != null) {
                 // check for the key
@@ -414,6 +413,12 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                 String versionHistoryId = (String) content.getProperties().get(InternalContent.VERSION_HISTORY_ID_FIELD);
                 boolean realUpdate = versionHistoryId != null && content.getOriginalProperties().containsKey(OAE_CONTENT_NEW_FLAG);
                 if (kalturaEntryId != null && realUpdate) {
+                    /*
+                     * If it gets to this point it means 3 things are true:
+                     *  (1) This is a kaltura content item which has not be updated to kaltura server yet
+                     *  (2) This event type operation is an update
+                     *  (3) The content item has the version history id set
+                     */
                     LOG.info("ZZZZZZZZZZA - Found content to update in kaltura"); // TODO remove
                     //dumpMapToLog(content.getProperties(), "contentProperties - "+kalturaEntryId); // TODO remove
                     LOG.info("Found kaltura content item ("+poolId+") to update during OAE content update with keid ("+kalturaEntryId+")...");
