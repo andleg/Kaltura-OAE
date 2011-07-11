@@ -388,26 +388,35 @@ public class KalturaService implements FileUploadHandler, EventHandler {
         So yeah, it's all a bit hairy :)  If that all makes sense I'll try to
         amend the doco for FileUploadHandler to emphasise that getting notified
         about uploaded files is only half the story.
+
+        NOTES:
+        - this is called 16 times on a new item upload and about 12 times for content updates and 6 times for update version file uploads,
+        as a result we cannot just update kaltura each time this is called or it will crush the kaltura servers
+
+        - I attempted to compare the original and current properties to see if I could identify when they changed but this did not work
+        as the results in the logs show: 
+           ... realUpdate=false, (az-test.mov)=(az-test.mov),(null)=(null)
+           ... realUpdate=false, (aaaaaaaaaa)=(aaaaaaaaaa),(bbbbbb)=(bbbbbb)
+        
+        - Attempting to use the 'update' property to filter down the number of events - "update".equals(event.getProperty("op")
          */
-        LOG.info("AAAAAZZZZZ - Event ("+event.getTopic()+")"); // TODO remove
+        boolean updateEvent = "update".equals(event.getProperty("op"));
         String poolId = (String) event.getProperty(TOPIC_PROPERTY_POOLID);
-        if (poolId != null) {
+        if (poolId != null && updateEvent) {
+            LOG.info("AAAAAAAAAAAAZ - this ("+poolId+") counts as an update event"); // TODO remove
             Content content = getContent(poolId);
             if (content != null) {
                 // check for the key
                 String kalturaEntryId = (String) content.getProperties().get(OAE_CONTENT_NEW_FLAG);
-                // indicates that the OAE_CONTENT_NEW_FLAG was just now added to the content item
-                boolean justAddedFlag = ! content.getOriginalProperties().containsKey(OAE_CONTENT_NEW_FLAG);
-                LOG.info("ZZZZZAAAAA - kalturaEntryId="+kalturaEntryId+", justAddedFlag="+justAddedFlag); // TODO remove
-                if (kalturaEntryId != null && ! justAddedFlag) {
-                    LOG.info("ZZZZZAAAAA - Found content to update in kaltura"); // TODO remove
+                if (kalturaEntryId != null && content.getOriginalProperties().containsKey(OAE_CONTENT_NEW_FLAG)) {
+                    LOG.info("ZZZZZZZZZZA - Found content to update in kaltura"); // TODO remove
                     LOG.info("Found kaltura content item ("+poolId+") to update during OAE content update with keid ("+kalturaEntryId+")...");
                     // make the kaltura entry to update it
+                    /*
                     KalturaBaseEntry kbe = new KalturaBaseEntry();
                     kbe.id = kalturaEntryId;
                     int version = getContentVersion(poolId);
-                    String fileName = (String)content.getProperties().get(FilesConstants.POOLED_CONTENT_FILENAME);
-                    kbe.name = makeKalturaTitle(content.getProperties(), fileName, version);
+                    kbe.name = makeKalturaTitle(content.getProperties(), version);
                     kbe.description = (String)content.getProperties().get(FilesConstants.SAKAI_DESCRIPTION); // may be blank
                     kbe.tags = makeKalturaTags(content.getProperties());
                     updateKalturaItem(null, kbe);
@@ -416,7 +425,9 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                     Map<String, Object> props = new HashMap<String, Object>(1);
                     props.put(OAE_CONTENT_NEW_FLAG, null);
                     props.put("kaltura-updated", new Date().getTime());
-                    updateContent(poolId, props);
+                    Map<String, Object> newProps = updateContent(poolId, props); // exception if update fails
+                    dumpMapToLog(newProps, "updatedContentProperties"); // TODO remove
+                    */
                     LOG.info("Updated OAE content item ("+poolId+") and synced Kaltura item ("+kalturaEntryId+") data");
                 }
             }
@@ -426,6 +437,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
     // OAE FILE UPLOAD HANDLER
 
     private static final String OAE_CONTENT_NEW_FLAG = "kaltura-content-new";
+    private static final String OAE_CONTENT_EXTENSION = "sakai:fileextension";
 
     /*
      * NOTE: requires https://github.com/marktriggs/nakamura/tree/fileuploadhandlers for now
@@ -450,17 +462,19 @@ public class KalturaService implements FileUploadHandler, EventHandler {
      */
     public void handleFile(String poolId, InputStream inputStream, String userId, boolean isNew) throws IOException {
         Map<String, Object> contentProperties = getContentProperties(poolId);
-        //dumpMapToLog(contentProperties, "handleFile.contentProperties");
+        //dumpMapToLog(contentProperties, "contentProperties");
         // check if this is a video file and do nothing if it is not
         String mimeType = (String)contentProperties.get(InternalContent.MIMETYPE_FIELD);
-        String fileName = (String)contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
+        String fileExtension = (String)contentProperties.get(OAE_CONTENT_EXTENSION);
+        String path = (String)contentProperties.get(InternalContent.PATH_FIELD);
+        String fileName = path+fileExtension;
 
         // NOTE: no handling for images yet
         KalturaMediaType mediaType = KalturaMediaType.VIDEO;
-        boolean isVideo = isFileVideo(fileName, mimeType);
+        boolean isVideo = isFileVideo(fileExtension, mimeType);
         boolean isAudio = false;
         if (!isVideo) {
-            isAudio = isFileAudio(fileName, mimeType);
+            isAudio = isFileAudio(fileExtension, mimeType);
             if (isAudio) {
                 mediaType = KalturaMediaType.AUDIO;
             }
@@ -485,7 +499,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                 // do things when this is an update to an existing content item
                 version = getContentVersion(poolId); // exception if lookup fails
             }
-            String title = makeKalturaTitle(contentProperties, fileName, version);
+            String title = makeKalturaTitle(contentProperties, version);
             String desc = (String)contentProperties.get(FilesConstants.SAKAI_DESCRIPTION); // may be blank
             String tags = makeKalturaTags(contentProperties);
             // do processing of the video file
@@ -516,9 +530,10 @@ public class KalturaService implements FileUploadHandler, EventHandler {
                 }
                 props.put(InternalContent.MIMETYPE_FIELD, kalturaMimeType);
 
-                LOG.info("Completed upload to Kaltura of file ("+fileName+") of type ("+kalturaMimeType+") and created kalturaEntry ("+mediaItem.getKalturaId()+")");
+                LOG.info("Completed upload ("+title+") to Kaltura of file ("+fileName+") of type ("+kalturaMimeType+") and created kalturaEntry ("+mediaItem.getKalturaId()+")");
 
-                updateContent(poolId, props); // exception if update fails
+                Map<String, Object> newProps = updateContent(poolId, props); // exception if update fails
+                dumpMapToLog(newProps, "newContentProperties"); // TODO remove
             } else {
                 // should we fail here if kaltura does not return a valid KBE? -AZ
             }
@@ -529,12 +544,11 @@ public class KalturaService implements FileUploadHandler, EventHandler {
     /**
      * Make a title to be sent to Kaltura
      * @param contentProperties OAE content properties
-     * @param fileName the file name (necessary for making the default title)
      * @param version the content version (greater than or equal to 1)
      * @return the title to send to kaltura
      */
-    private String makeKalturaTitle(Map<String, Object> contentProperties, String fileName, int version) {
-        String title = fileName+"_title";
+    private String makeKalturaTitle(Map<String, Object> contentProperties, int version) {
+        String title = "title";
         if (contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME) != null) {
             title = (String) contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
         }
@@ -632,9 +646,11 @@ public class KalturaService implements FileUploadHandler, EventHandler {
      * Update an OAE content item
      * @param poolId the unique path/poolId of a content object
      * @param properties the properties to update or delete on this object (props with a NULL value will be removed, all others will be replaced or added)
+     * @return the complete set of new properties for the content
      * @throws RuntimeException if the content object cannot be updated
      */
-    private void updateContent(String poolId, Map<?, ?> properties) {
+    private Map<String, Object> updateContent(String poolId, Map<?, ?> properties) {
+        Map<String, Object> props = null;
         Content contentItem = getContent(poolId);
         //dumpMapToLog(properties, "NEW-properties");
         for (Entry<?, ?> entry : properties.entrySet()) {
@@ -650,40 +666,43 @@ public class KalturaService implements FileUploadHandler, EventHandler {
             Session adminSession = repository.loginAdministrative();
             ContentManager contentManager = adminSession.getContentManager();
             contentManager.update(contentItem);
+            Content content = contentManager.get(poolId);
+            props = content.getProperties();
             adminSession.logout();
             LOG.debug("Completed update of content item props ("+poolId+") for Kaltura upload");
         } catch (Exception e) {
             LOG.error("Unable to update content at path="+poolId+": "+e, e);
             throw new RuntimeException("Unable to update content at path="+poolId+": "+e, e);
         }
+        return props;
     }
 
     /**
      * Determine if a file has video content
-     * @param fileName the file name as uploaded
+     * @param fileExtension the file extension (includes the ., e.g. .mov)
      * @param mimeType the mimetype from the UI
      * @return true if video, false otherwise
      */
-    protected boolean isFileVideo(String fileName, String mimeType) {
+    protected boolean isFileVideo(String fileExtension, String mimeType) {
         boolean video = false;
         if (KALTURA_MIMETYPE_VIDEO.equals(mimeType) || mimeType.startsWith("video/")) {
             video = true;
         } else {
-            if (fileName.endsWith(".avi")  // avi
-                    || fileName.endsWith(".mpg") // mpeg 2
-                    || fileName.endsWith(".mpe") // mpeg 2
-                    || fileName.endsWith(".mpeg") // mpeg 2
-                    || fileName.endsWith(".mp4") // mpeg 4
-                    || fileName.endsWith(".m4v") // mpeg 4
-                    || fileName.endsWith(".mov") // quicktime
-                    || fileName.endsWith(".qt") // quicktime
-                    || fileName.endsWith(".asf") // windows media
-                    || fileName.endsWith(".asx") // windows media
-                    || fileName.endsWith(".wmv") // windows media
-                    || fileName.endsWith(".rm") // real video
-                    || fileName.endsWith(".ogm") // OG media
-                    || fileName.endsWith(".3gp") // 3gpp
-                    || fileName.endsWith(".mkv") // matroska
+            if (fileExtension.equals(".avi")  // avi
+                    || fileExtension.equals(".mpg") // mpeg 2
+                    || fileExtension.equals(".mpe") // mpeg 2
+                    || fileExtension.equals(".mpeg") // mpeg 2
+                    || fileExtension.equals(".mp4") // mpeg 4
+                    || fileExtension.equals(".m4v") // mpeg 4
+                    || fileExtension.equals(".mov") // quicktime
+                    || fileExtension.equals(".qt") // quicktime
+                    || fileExtension.equals(".asf") // windows media
+                    || fileExtension.equals(".asx") // windows media
+                    || fileExtension.equals(".wmv") // windows media
+                    || fileExtension.equals(".rm") // real video
+                    || fileExtension.equals(".ogm") // OG media
+                    || fileExtension.equals(".3gp") // 3gpp
+                    || fileExtension.equals(".mkv") // matroska
             ) {
                 video = true;
             }
@@ -693,23 +712,23 @@ public class KalturaService implements FileUploadHandler, EventHandler {
 
     /**
      * Determine if a file has audio content
-     * @param fileName the file name as uploaded
+     * @param fileExtension the file extension (includes the ., e.g. .mov)
      * @param mimeType the mimetype from the UI
      * @return true if audio, false otherwise
      */
-    protected boolean isFileAudio(String fileName, String mimeType) {
+    protected boolean isFileAudio(String fileExtension, String mimeType) {
         boolean audio = false;
         if (KALTURA_MIMETYPE_AUDIO.equals(mimeType) || mimeType.startsWith("audio/")) {
             audio = true;
         } else {
-            if (fileName.endsWith(".wav")  // wave audio
-                    || fileName.endsWith(".aif") // aiff
-                    || fileName.endsWith(".mp3") // mpeg 3
-                    || fileName.endsWith(".aac") // aac
-                    || fileName.endsWith(".mid") // midi
-                    || fileName.endsWith(".mpa") // mpeg 2 audio
-                    || fileName.endsWith(".wma") // windows media audio
-                    || fileName.endsWith(".ra") // realaudio
+            if (fileExtension.equals(".wav")  // wave audio
+                    || fileExtension.equals(".aif") // aiff
+                    || fileExtension.equals(".mp3") // mpeg 3
+                    || fileExtension.equals(".aac") // aac
+                    || fileExtension.equals(".mid") // midi
+                    || fileExtension.equals(".mpa") // mpeg 2 audio
+                    || fileExtension.equals(".wma") // windows media audio
+                    || fileExtension.equals(".ra") // realaudio
             ) {
                 audio = true;
             }
