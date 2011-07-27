@@ -17,6 +17,7 @@ import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpStatus;
+import org.apache.commons.httpclient.ProxyHost;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
 import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
@@ -148,7 +149,23 @@ abstract public class KalturaClientBase {
 
         // build request
         HttpClient client = new HttpClient();
-		HttpConnectionManagerParams connParams = client.getHttpConnectionManager().getParams();
+        // added by Unicon to handle proxy hosts
+        String proxyHost = System.getProperty( "http.proxyHost" );
+        if ( proxyHost != null ) {
+            int proxyPort = -1;
+            String proxyPortStr = System.getProperty( "http.proxyPort" );
+            if (proxyPortStr != null) {
+                try {
+                    proxyPort = Integer.parseInt( proxyPortStr );
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid number for system property http.proxyPort ("+proxyPortStr+"), using default port instead");
+                }
+            }
+            ProxyHost proxy = new ProxyHost( proxyHost, proxyPort );
+            client.getHostConfiguration().setProxyHost( proxy );
+        }
+
+        HttpConnectionManagerParams connParams = client.getHttpConnectionManager().getParams();
 		connParams.setSoTimeout(this.kalturaConfiguration.getTimeout());
 		client.getHttpConnectionManager().setParams(connParams);
 		
