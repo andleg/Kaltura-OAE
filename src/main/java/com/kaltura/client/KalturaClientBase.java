@@ -49,38 +49,38 @@ abstract public class KalturaClientBase {
 
     private static Logger logger = LoggerFactory.getLogger(KalturaClientBase.class);
     
-    public KalturaClientBase() {    	
+    public KalturaClientBase() {        
     }
-    
+
     public KalturaClientBase(KalturaConfiguration config) {
         this.kalturaConfiguration = config;
         this.callsQueue = new ArrayList<KalturaServiceActionCall>();
         this.multiRequestParamsMap = new KalturaParams();
     }
-    
+
     abstract String getApiVersion();
-    
+
     public String getSessionId() {
-    	return this.sessionId;
+        return this.sessionId;
     }
 
     public void setSessionId(String sessionId) {
-    	this.sessionId = sessionId;
+        this.sessionId = sessionId;
     }
-                    
+
     public boolean isMultiRequest() {
-		return isMultiRequest;
-	}
+        return isMultiRequest;
+    }
 
-	public void setMultiRequest(boolean isMultiRequest) {
-		this.isMultiRequest = isMultiRequest;
-	}
+    public void setMultiRequest(boolean isMultiRequest) {
+        this.isMultiRequest = isMultiRequest;
+    }
 
-	public void setKalturaConfiguration(KalturaConfiguration kalturaConfiguration) {
-		this.kalturaConfiguration = kalturaConfiguration;
-	}
-	
-	public void queueServiceCall(String service, String action, KalturaParams kparams) {
+    public void setKalturaConfiguration(KalturaConfiguration kalturaConfiguration) {
+        this.kalturaConfiguration = kalturaConfiguration;
+    }
+
+    public void queueServiceCall(String service, String action, KalturaParams kparams) {
         this.queueServiceCall(service, action, kparams, new KalturaFiles());
     }
 
@@ -101,7 +101,9 @@ abstract public class KalturaClientBase {
     public Element doQueue() throws KalturaApiException {
         if (this.callsQueue.isEmpty()) return null;
 
-        logger.debug("service url: [" + this.kalturaConfiguration.getEndpoint() + "]");
+        if (logger.isDebugEnabled()) {
+            logger.debug("service url: [" + this.kalturaConfiguration.getEndpoint() + "]");
+        }
 
         KalturaParams kparams = new KalturaParams();
         KalturaFiles kfiles = new KalturaFiles();
@@ -145,7 +147,9 @@ abstract public class KalturaClientBase {
 
         kparams.put("sig", this.signature(kparams));
 
-        logger.debug("full reqeust url: [" + url + "?" + kparams.toQueryString() + "]");
+        if (logger.isDebugEnabled()) {
+            logger.debug("full reqeust url: [" + url + "?" + kparams.toQueryString() + "]");
+        }
 
         // build request
         HttpClient client = new HttpClient();
@@ -164,69 +168,80 @@ abstract public class KalturaClientBase {
             ProxyHost proxy = new ProxyHost( proxyHost, proxyPort );
             client.getHostConfiguration().setProxyHost( proxy );
         }
+        // added by Unicon to force encoding to UTF-8
+        String utf8CharSet = "UTF-8";
+        client.getParams().setParameter(HttpMethodParams.HTTP_CONTENT_CHARSET, utf8CharSet);
+        client.getParams().setParameter(HttpMethodParams.HTTP_ELEMENT_CHARSET, utf8CharSet);
+        client.getParams().setParameter(HttpMethodParams.HTTP_URI_CHARSET, utf8CharSet);
 
         HttpConnectionManagerParams connParams = client.getHttpConnectionManager().getParams();
-		connParams.setSoTimeout(this.kalturaConfiguration.getTimeout());
-		client.getHttpConnectionManager().setParams(connParams);
-		
+        connParams.setSoTimeout(this.kalturaConfiguration.getTimeout());
+        client.getHttpConnectionManager().setParams(connParams);
+
         PostMethod method = new PostMethod(url);
-        
-        if (!kfiles.isEmpty()) {        	
-            method = this.getPostMultiPartWithFiles(method, kparams, kfiles);        	
+        method.setRequestHeader("Accept","text/xml,application/xml,*/*");
+        method.setRequestHeader("Accept-Charset","utf-8,ISO-8859-1;q=0.7,*;q=0.5");
+
+        if (!kfiles.isEmpty()) {            
+            method = this.getPostMultiPartWithFiles(method, kparams, kfiles);           
         } else {
             method = this.addParams(method, kparams);            
         }
 
-		// Provide custom retry handler is necessary
-		method.getParams().setParameter(HttpMethodParams.RETRY_HANDLER,
-				new DefaultHttpMethodRetryHandler (3, false));
+        // Provide custom retry handler is necessary
+        method.getParams().setParameter(HttpMethodParams.RETRY_HANDLER,
+                new DefaultHttpMethodRetryHandler (3, false));
 
-		String responseString = "";
-		try {
-			// Execute the method.
-			int statusCode = client.executeMethod(method);
+        String responseString = "";
+        try {
+            // Execute the method.
+            int statusCode = client.executeMethod(method);
 
-			Header[] headers = method.getRequestHeaders();
-			for(Header header : headers)
-				logger.debug("Header [" + header.getName() + " value [" + header.getValue() + "]");
-	        
-			if (statusCode != HttpStatus.SC_OK) {
-				System.err.println ( "Method failed: " + method.getStatusLine ( ) );
-			}
+            Header[] headers = method.getRequestHeaders();
+            if (logger.isDebugEnabled()) {
+                for (Header header : headers) {
+                    logger.debug("Header [" + header.getName() + " value [" + header.getValue() + "]");
+                }
+            }
 
-			// Read the response body.
-			byte[] responseBody = method.getResponseBody ( );
+            if (statusCode != HttpStatus.SC_OK) {
+                System.err.println ( "Method failed: " + method.getStatusLine ( ) );
+            }
 
-			// Deal with the response.
-			// Use caution: ensure correct character encoding and is not binary
-			// data
-			responseString = new String (responseBody);
-			logger.debug(responseString);
-			
-		} catch ( HttpException e ) {
-			System.err.println ( "Fatal protocol violation: " + e.getMessage ( ) );
-			e.printStackTrace ( );
-		} catch ( IOException e ) {
-			System.err.println ( "Fatal transport error: " + e.getMessage ( ) );
-			e.printStackTrace ( );
-		} finally {
-			// Release the connection.
-			method.releaseConnection ( );
-		}			
-		        
+            // Read the response body.
+            byte[] responseBody = method.getResponseBody ( );
+
+            // Deal with the response.
+            // Use caution: ensure correct character encoding and is not binary data
+            responseString = new String(responseBody, utf8CharSet); // Unicon: this MUST be set to UTF-8 charset -AZ
+            if (logger.isDebugEnabled()) {
+                logger.debug(responseString);
+            }
+
+        } catch ( HttpException e ) {
+            System.err.println ( "Fatal protocol violation: " + e.getMessage ( ) );
+            e.printStackTrace ( );
+        } catch ( IOException e ) {
+            System.err.println ( "Fatal transport error: " + e.getMessage ( ) );
+            e.printStackTrace ( );
+        } finally {
+            // Release the connection.
+            method.releaseConnection ( );
+        }           
+
         Element responseXml = XmlUtils.parseXml(responseString);
-        
+
         this.validateXmlResult(responseXml);
-      
+
         Element resultXml = null;
         try {
-        	resultXml = XmlUtils.getElementByXPath(responseXml, "/xml/result");
+            resultXml = XmlUtils.getElementByXPath(responseXml, "/xml/result");
         } catch (XPathExpressionException xee) {
-    		throw new KalturaApiException("XPath expression exception evaluating result");
-    	}	
-        
+            throw new KalturaApiException("XPath expression exception evaluating result");
+        }   
+
         this.throwExceptionOnAPIError(resultXml);
-        
+
         return resultXml;
     }
 
@@ -234,27 +249,27 @@ abstract public class KalturaClientBase {
         isMultiRequest = true;
     }
 
-    
+
     public KalturaMultiResponse doMultiRequest() throws KalturaApiException 
     {
-    	Element multiRequestResult = doQueue();
+        Element multiRequestResult = doQueue();
 
         KalturaMultiResponse multiResponse = new KalturaMultiResponse();
-       
+
         for(int i = 0; i < multiRequestResult.getChildNodes().getLength(); i++) 
         {
             Element arrayNode = (Element)multiRequestResult.getChildNodes().item(i);
             if (arrayNode.getElementsByTagName("objectType").getLength() == 0)
             {
-            	multiResponse.add(arrayNode.getTextContent());
+                multiResponse.add(arrayNode.getTextContent());
             }
             else
             {
-            	multiResponse.add(KalturaObjectFactory.create(arrayNode));
+                multiResponse.add(KalturaObjectFactory.create(arrayNode));
             }
-       }
-        
- /*       foreach (Element arrayNode in multiRequestResult.ChildNodes)
+        }
+
+        /*       foreach (Element arrayNode in multiRequestResult.ChildNodes)
         {
             if (arrayNode["error"] != null)
                 multiResponse.Add(new KalturaAPIException(arrayNode["error"]["code"].InnerText, arrayNode["error"]["message"].InnerText));
@@ -263,11 +278,11 @@ abstract public class KalturaClientBase {
             else
                 multiResponse.Add(arrayNode.InnerText);
         }
-*/
+         */
         return multiResponse;
     }
-	
-    
+
+
     public void mapMultiRequestParam(int resultNumber, int requestNumber, String requestParamName) {
         this.mapMultiRequestParam(resultNumber, null, requestNumber, requestParamName);
     }
@@ -289,72 +304,72 @@ abstract public class KalturaClientBase {
         }
 
         MessageDigest mdEnc = null;
-		try {
-			mdEnc = MessageDigest.getInstance("MD5");
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		}		
-		mdEnc.update(str.getBytes(), 0, str.length());
-		String md5 = new BigInteger(1, mdEnc.digest()).toString(16); // Encrypted string
-		
+        try {
+            mdEnc = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }       
+        mdEnc.update(str.getBytes(), 0, str.length());
+        String md5 = new BigInteger(1, mdEnc.digest()).toString(16); // Encrypted string
+
         return md5;
     }
 
     private void validateXmlResult(Element resultXml) throws KalturaApiException {
-    	
-    	Element resultElement = null;
-    	try {
-    		resultElement = XmlUtils.getElementByXPath(resultXml, "/xml/result");
-    	} catch (XPathExpressionException xee) {
-    		throw new KalturaApiException("XPath expression exception evaluating result");
-    	}
-    	                
+
+        Element resultElement = null;
+        try {
+            resultElement = XmlUtils.getElementByXPath(resultXml, "/xml/result");
+        } catch (XPathExpressionException xee) {
+            throw new KalturaApiException("XPath expression exception evaluating result");
+        }
+
         if (resultElement != null) {
             return;            
         } else {
-        	throw new KalturaApiException("Invalid result");
+            throw new KalturaApiException("Invalid result");
         }
     }
 
     private void throwExceptionOnAPIError(Element result) throws KalturaApiException {
-    	
-    	Element resultElement = null;
-    	try {
-    		resultElement = XmlUtils.getElementByXPath(result, "error");
-    	} catch (XPathExpressionException xee) {
-    		throw new KalturaApiException("XPath expression exception evaluating result");
-    	}
-    	        
+
+        Element resultElement = null;
+        try {
+            resultElement = XmlUtils.getElementByXPath(result, "error");
+        } catch (XPathExpressionException xee) {
+            throw new KalturaApiException("XPath expression exception evaluating result");
+        }
+
         if (resultElement != null) {
-        	throw new KalturaApiException(resultElement.getTextContent());
+            throw new KalturaApiException(resultElement.getTextContent());
         }
     }
 
     private PostMethod getPostMultiPartWithFiles(PostMethod postMethod, KalturaParams kparams, KalturaFiles kfiles) {
- 
-    	String boundary = "---------------------------" + System.currentTimeMillis();
-    	List <Part> parts = new ArrayList<Part>();
-    	parts.add(new StringPart (HttpMethodParams.MULTIPART_BOUNDARY, boundary));
- 
-    	for (String key : kparams.keySet()) {
-    		parts.add(new StringPart (key,kparams.get(key)));       
-    	}
-     
-    	for (String key : kfiles.keySet()) {
-    		final KalturaFile kFile = kfiles.get(key);
+
+        String boundary = "---------------------------" + System.currentTimeMillis();
+        List <Part> parts = new ArrayList<Part>();
+        parts.add(new StringPart (HttpMethodParams.MULTIPART_BOUNDARY, boundary));
+
+        for (String key : kparams.keySet()) {
+            parts.add(new StringPart (key,kparams.get(key)));       
+        }
+
+        for (String key : kfiles.keySet()) {
+            final KalturaFile kFile = kfiles.get(key);
             parts.add(new StringPart (key, "filename="+kFile.getName()));
-    		if (kFile.getFile() != null) {
-    		    // use the file
-    		    File file = kFile.getFile();
+            if (kFile.getFile() != null) {
+                // use the file
+                File file = kFile.getFile();
                 try {
                     parts.add(new FilePart(key, file));
                 } catch (FileNotFoundException e) {
                     // TODO this sort of leaves the submission in a weird state... -AZ
                     logger.error("Exception while iterating over kfiles", e);          
                 }
-    		} else {
-    		    // use the input stream
-    		    PartSource fisPS = new PartSource() {
+            } else {
+                // use the input stream
+                PartSource fisPS = new PartSource() {
                     public long getLength() {
                         return kFile.getSize();
                     }
@@ -366,29 +381,44 @@ abstract public class KalturaClientBase {
                     }
                 };
                 parts.add(new FilePart(key, fisPS));
-    		}
-    	}
-      
-    	Part allParts[] = new Part[parts.size()];
-    	int i=0;
-    	for (Part p : parts) {
-    		allParts[i] = p;
-    		++i;
-    	}
-     
-    	postMethod.setRequestEntity(new MultipartRequestEntity(allParts, postMethod.getParams()));
- 
-    	return postMethod;
+            }
+        }
+
+        Part allParts[] = new Part[parts.size()];
+        int i=0;
+        for (Part p : parts) {
+            allParts[i] = p;
+            ++i;
+        }
+
+        postMethod.setRequestEntity(new MultipartRequestEntity(allParts, postMethod.getParams()));
+
+        return postMethod;
     }
-	    
+
     private PostMethod addParams(PostMethod method, KalturaParams kparams) {
-    	
-		for (String key : kparams.keySet()) {
-			method.addParameter(key, kparams.get(key));
-		}
-		
-		return method;
-		
+
+        for (String key : kparams.keySet()) {
+            method.addParameter(key, kparams.get(key));
+        }
+
+        return method;
+
     }
-           
+
+    /* Gonen fix - UTF8PostMethod instead of PostMethod - 20110803
+     * Unicon: not using this for now -AZ
+    public static class UTF8PostMethod extends PostMethod {
+        public UTF8PostMethod(String url) {
+            super(url);
+        }
+
+        @Override
+        public String getRequestCharSet() {
+            // return super.getRequestCharSet();
+            return "UTF-8";
+        }
+    }
+    */
+
 }
