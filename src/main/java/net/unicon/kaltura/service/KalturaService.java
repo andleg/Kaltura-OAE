@@ -556,7 +556,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
      * @param version the content version (greater than or equal to 1)
      * @return the title to send to kaltura
      */
-    private String makeKalturaTitle(Map<String, Object> contentProperties, int version) {
+    protected String makeKalturaTitle(Map<String, Object> contentProperties, int version) {
         String title = "title";
         if (contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME) != null) {
             title = (String) contentProperties.get(FilesConstants.POOLED_CONTENT_FILENAME);
@@ -573,7 +573,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
      * @param contentProperties OAE content properties
      * @return the tags comma separated string (empty string if there are none)
      */
-    private String makeKalturaTags(Map<String, Object> contentProperties) {
+    protected String makeKalturaTags(Map<String, Object> contentProperties) {
         String tags = "";
         if (contentProperties.get(FilesConstants.SAKAI_TAGS) != null) {
             // convert tags array into CSV string
@@ -694,26 +694,29 @@ public class KalturaService implements FileUploadHandler, EventHandler {
      */
     protected boolean isFileVideo(String fileExtension, String mimeType) {
         boolean video = false;
-        if (KALTURA_MIMETYPE_VIDEO.equals(mimeType) || mimeType.startsWith("video/")) {
+        if (mimeType != null 
+                && (KALTURA_MIMETYPE_VIDEO.equals(mimeType) || mimeType.startsWith("video/")) ) {
             video = true;
         } else {
-            if (fileExtension.equals(".avi")  // avi
-                    || fileExtension.equals(".mpg") // mpeg 2
-                    || fileExtension.equals(".mpe") // mpeg 2
-                    || fileExtension.equals(".mpeg") // mpeg 2
-                    || fileExtension.equals(".mp4") // mpeg 4
-                    || fileExtension.equals(".m4v") // mpeg 4
-                    || fileExtension.equals(".mov") // quicktime
-                    || fileExtension.equals(".qt") // quicktime
-                    || fileExtension.equals(".asf") // windows media
-                    || fileExtension.equals(".asx") // windows media
-                    || fileExtension.equals(".wmv") // windows media
-                    || fileExtension.equals(".rm") // real video
-                    || fileExtension.equals(".ogm") // OG media
-                    || fileExtension.equals(".3gp") // 3gpp
-                    || fileExtension.equals(".mkv") // matroska
-            ) {
-                video = true;
+            if (fileExtension != null) {
+                if (fileExtension.equals(".avi")  // avi
+                        || fileExtension.equals(".mpg") // mpeg 2
+                        || fileExtension.equals(".mpe") // mpeg 2
+                        || fileExtension.equals(".mpeg") // mpeg 2
+                        || fileExtension.equals(".mp4") // mpeg 4
+                        || fileExtension.equals(".m4v") // mpeg 4
+                        || fileExtension.equals(".mov") // quicktime
+                        || fileExtension.equals(".qt") // quicktime
+                        || fileExtension.equals(".asf") // windows media
+                        || fileExtension.equals(".asx") // windows media
+                        || fileExtension.equals(".wmv") // windows media
+                        || fileExtension.equals(".rm") // real video
+                        || fileExtension.equals(".ogm") // OG media
+                        || fileExtension.equals(".3gp") // 3gpp
+                        || fileExtension.equals(".mkv") // matroska
+                ) {
+                    video = true;
+                }
             }
         }
         return video;
@@ -727,19 +730,22 @@ public class KalturaService implements FileUploadHandler, EventHandler {
      */
     protected boolean isFileAudio(String fileExtension, String mimeType) {
         boolean audio = false;
-        if (KALTURA_MIMETYPE_AUDIO.equals(mimeType) || mimeType.startsWith("audio/")) {
+        if (mimeType != null 
+                && (KALTURA_MIMETYPE_AUDIO.equals(mimeType) || mimeType.startsWith("audio/")) ) {
             audio = true;
         } else {
-            if (fileExtension.equals(".wav")  // wave audio
-                    || fileExtension.equals(".aif") // aiff
-                    || fileExtension.equals(".mp3") // mpeg 3
-                    || fileExtension.equals(".aac") // aac
-                    || fileExtension.equals(".mid") // midi
-                    || fileExtension.equals(".mpa") // mpeg 2 audio
-                    || fileExtension.equals(".wma") // windows media audio
-                    || fileExtension.equals(".ra") // realaudio
-            ) {
-                audio = true;
+            if (fileExtension != null) {
+                if (fileExtension.equals(".wav")  // wave audio
+                        || fileExtension.equals(".aif") // aiff
+                        || fileExtension.equals(".mp3") // mpeg 3
+                        || fileExtension.equals(".aac") // aac
+                        || fileExtension.equals(".mid") // midi
+                        || fileExtension.equals(".mpa") // mpeg 2 audio
+                        || fileExtension.equals(".wma") // windows media audio
+                        || fileExtension.equals(".ra") // realaudio
+                ) {
+                    audio = true;
+                }
             }
         }
         return audio;
