@@ -36,7 +36,6 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.osgi.OsgiUtil;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventHandler;
-import org.sakaiproject.nakamura.api.connections.ConnectionManager;
 import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
 import org.sakaiproject.nakamura.api.files.FilesConstants;
@@ -50,10 +49,6 @@ import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
-import org.sakaiproject.nakamura.api.messagebucket.MessageBucketService;
-import org.sakaiproject.nakamura.api.profile.ProfileService;
-import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
-import org.sakaiproject.nakamura.api.user.BasicUserInfoService;
 import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.sakaiproject.nakamura.lite.content.InternalContent;
 import org.slf4j.Logger;
@@ -172,21 +167,6 @@ public class KalturaService implements FileUploadHandler, EventHandler {
 
     @Reference
     Repository repository;
-
-    @Reference
-    ConnectionManager connectionManager;
-
-    @Reference
-    ProfileService profileService;
-
-    @Reference
-    MessageBucketService messageBucketService;
-
-    @Reference
-    SolrSearchServiceFactory searchServiceFactory;
-
-    @Reference
-    BasicUserInfoService basicUserInfoService;
 
     // OSGI INIT CODE
 
