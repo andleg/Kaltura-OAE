@@ -12,6 +12,7 @@ import java.util.List;
 
 import javax.xml.xpath.XPathExpressionException;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.httpclient.DefaultHttpMethodRetryHandler;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Element;
 
+import com.kaltura.client.enums.KalturaSessionType;
 import com.kaltura.client.utils.XmlUtils;
 
 /**
@@ -48,8 +50,8 @@ abstract public class KalturaClientBase {
     protected KalturaParams multiRequestParamsMap;
 
     private static Logger logger = LoggerFactory.getLogger(KalturaClientBase.class);
-    
-    public KalturaClientBase() {        
+
+    public KalturaClientBase() {
     }
 
     public KalturaClientBase(KalturaConfiguration config) {
@@ -182,7 +184,7 @@ abstract public class KalturaClientBase {
         method.setRequestHeader("Accept","text/xml,application/xml,*/*");
         method.setRequestHeader("Accept-Charset","utf-8,ISO-8859-1;q=0.7,*;q=0.5");
 
-        if (!kfiles.isEmpty()) {            
+        if (!kfiles.isEmpty()) {
             method = this.getPostMultiPartWithFiles(method, kparams, kfiles);           
         } else {
             method = this.addParams(method, kparams);            
@@ -227,7 +229,7 @@ abstract public class KalturaClientBase {
         } finally {
             // Release the connection.
             method.releaseConnection ( );
-        }           
+        }
 
         Element responseXml = XmlUtils.parseXml(responseString);
 
@@ -238,7 +240,7 @@ abstract public class KalturaClientBase {
             resultXml = XmlUtils.getElementByXPath(responseXml, "/xml/result");
         } catch (XPathExpressionException xee) {
             throw new KalturaApiException("XPath expression exception evaluating result");
-        }   
+        }
 
         this.throwExceptionOnAPIError(resultXml);
 
@@ -259,7 +261,13 @@ abstract public class KalturaClientBase {
         for(int i = 0; i < multiRequestResult.getChildNodes().getLength(); i++) 
         {
             Element arrayNode = (Element)multiRequestResult.getChildNodes().item(i);
-            if (arrayNode.getElementsByTagName("objectType").getLength() == 0)
+            
+            KalturaApiException exception = getExceptionOnAPIError(arrayNode);
+            if (exception != null)
+            {
+            	multiResponse.add(exception);
+            }
+            else if (arrayNode.getElementsByTagName("objectType").getLength() == 0)
             {
                 multiResponse.add(arrayNode.getTextContent());
             }
@@ -268,17 +276,6 @@ abstract public class KalturaClientBase {
                 multiResponse.add(KalturaObjectFactory.create(arrayNode));
             }
         }
-
-        /*       foreach (Element arrayNode in multiRequestResult.ChildNodes)
-        {
-            if (arrayNode["error"] != null)
-                multiResponse.Add(new KalturaAPIException(arrayNode["error"]["code"].InnerText, arrayNode["error"]["message"].InnerText));
-            else if (arrayNode["objectType"] != null)
-                multiResponse.Add(KalturaObjectFactory.Create(arrayNode));
-            else
-                multiResponse.Add(arrayNode.InnerText);
-        }
-         */
         return multiResponse;
     }
 
@@ -308,7 +305,7 @@ abstract public class KalturaClientBase {
             mdEnc = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
-        }       
+        }
         mdEnc.update(str.getBytes(), 0, str.length());
         String md5 = new BigInteger(1, mdEnc.digest()).toString(16); // Encrypted string
 
@@ -329,6 +326,27 @@ abstract public class KalturaClientBase {
         } else {
             throw new KalturaApiException("Invalid result");
         }
+    }
+
+    private KalturaApiException getExceptionOnAPIError(Element result) throws KalturaApiException {
+    	try {
+	    	Element errorElement = XmlUtils.getElementByXPath(result, "error");
+	    	if (errorElement == null)
+	    	{
+	    		return null;
+	    	}
+	    	
+	    	Element messageElement = XmlUtils.getElementByXPath(errorElement, "message");
+	    	Element codeElement = XmlUtils.getElementByXPath(errorElement, "code");
+	    	if (messageElement == null || codeElement == null)
+	    	{
+	    		return null;
+	    	}
+	    	
+	    	return new KalturaApiException(messageElement.getTextContent(), codeElement.getTextContent());
+    	} catch (XPathExpressionException xee) {
+    		throw new KalturaApiException("XPath expression exception evaluating result");
+    	}
     }
 
     private void throwExceptionOnAPIError(Element result) throws KalturaApiException {
@@ -420,5 +438,95 @@ abstract public class KalturaClientBase {
         }
     }
     */
+
+    public String generateSession(String adminSecretForSigning) throws Exception
+    {
+        return this.generateSession(adminSecretForSigning, "");
+    }
+    
+    public String generateSession(String adminSecretForSigning, String userId) throws Exception
+    {
+        return this.generateSession(adminSecretForSigning, userId, KalturaSessionType.USER);
+    }
+    
+    public String generateSession(String adminSecretForSigning, String userId, KalturaSessionType type) throws Exception
+    {
+        return this.generateSession(adminSecretForSigning, userId, type, -1);
+    }
+    
+    public String generateSession(String adminSecretForSigning, String userId, KalturaSessionType type, int partnerId) throws Exception
+    {
+        return this.generateSession(adminSecretForSigning, userId, type, partnerId, 86400);
+    }
+    
+    public String generateSession(String adminSecretForSigning, String userId, KalturaSessionType type, int partnerId, int expiry) throws Exception
+    {
+        return this.generateSession(adminSecretForSigning, userId, type, partnerId, expiry, "");
+    }
+
+    public String generateSession(String adminSecretForSigning, String userId, KalturaSessionType type, int partnerId, int expiry, String privileges) throws Exception
+    {
+        try
+        {
+            // initialize required values
+            int rand = (int)(Math.random() * 32000);
+            expiry = (int)(System.currentTimeMillis() / 1000) + 86400;
+            
+            // build info string
+            StringBuilder sbInfo = new StringBuilder();
+            sbInfo.append(this.kalturaConfiguration.partnerId).append(";"); // index 0 - partner ID
+            sbInfo.append(this.kalturaConfiguration.partnerId).append(";"); // index 1 - partner pattern - using partner ID
+            sbInfo.append(expiry).append(";"); // index 2 - expiration timestamp
+            sbInfo.append(type.getHashCode()).append(";"); // index 3 - session type
+            sbInfo.append(rand).append(";"); // index 4 - random number
+            sbInfo.append(userId).append(";"); // index 5 - user ID
+            sbInfo.append(privileges); // index 6 - privileges
+            
+            // sign info with SHA1 algorithm
+            MessageDigest algorithm = MessageDigest.getInstance("SHA1");
+            algorithm.reset();
+            algorithm.update(adminSecretForSigning.getBytes());
+            algorithm.update(sbInfo.toString().getBytes());
+            byte infoSignature[] = algorithm.digest();
+            
+            // convert signature to hex:
+            String signature = this.convertToHex(infoSignature);
+            
+            // build final string to base64 encode
+            StringBuilder sbToEncode = new StringBuilder();
+            sbToEncode.append(signature.toString()).append("|").append(sbInfo.toString());
+            // NOTE: do not use sun classes
+            //BASE64Encoder encoder = new BASE64Encoder();
+            //String hashedString = encoder.encode(sbToEncode.toString().getBytes());
+
+            // encode the signature and info with base64
+            String hashedString = Base64.encodeBase64String(sbToEncode.toString().getBytes());
+
+            // remove line breaks in the session string
+            String ks = hashedString.replace("\n", "");
+            // return the generated session key (KS)
+            return ks;
+        } catch (NoSuchAlgorithmException ex)
+        {
+            throw new Exception(ex);
+        }
+    }
+
+    // new function to convert byte array to Hex
+    private String convertToHex(byte[] data) { 
+        StringBuffer buf = new StringBuffer();
+        for (int i = 0; i < data.length; i++) { 
+            int halfbyte = (data[i] >>> 4) & 0x0F;
+            int two_halfs = 0;
+            do { 
+                if ((0 <= halfbyte) && (halfbyte <= 9)) 
+                    buf.append((char) ('0' + halfbyte));
+                else 
+                    buf.append((char) ('a' + (halfbyte - 10)));
+                halfbyte = data[i] & 0x0F;
+            } while(two_halfs++ < 1);
+        } 
+        return buf.toString();
+    } 
 
 }
