@@ -116,7 +116,7 @@ public class KalturaService implements FileUploadHandler, EventHandler {
     kaltura.player.audio  - 2158531
     kaltura.player.view  - 1522202
     kaltura.player.edit  - 1522362
-    kaltura.uploader - 2011401
+    kaltura.uploader - 5612211
     kaltura.editor - 2733871
      */
     //@Property(value="2162571", label="Player - Image")
